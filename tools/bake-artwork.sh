@@ -5,7 +5,7 @@
 #
 #   tools/bake-artwork.sh <source.png> [out-name] [height]
 #     source     the artwork, ink on any background (transparent or white)
-#     out-name   file written to src/assets (default: shape-ring.png)
+#     out-name   file written to assets (default: shape-ring.png)
 #     height     height of the baked mask in px (default: 900, as the others)
 #
 # The artwork is a line drawing — two ellipses, one inside the other — and at
@@ -26,7 +26,7 @@ OUT_NAME="${2:-shape-ring.png}"
 HEIGHT="${3:-900}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/src/assets/$OUT_NAME"
+OUT="$ROOT/assets/$OUT_NAME"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

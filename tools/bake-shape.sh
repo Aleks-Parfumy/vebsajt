@@ -4,7 +4,7 @@
 #
 #   tools/bake-shape.sh [piece] [out-name]
 #     piece      node name in the GLB (default: Curve002)
-#     out-name   file written to src/assets (default: shape-flower.png)
+#     out-name   file written to assets (default: shape-flower.png)
 #
 # Needs chromium. WebGL in headless chromium only works with
 # --enable-unsafe-swiftshader, which is why that flag is here.
@@ -15,7 +15,7 @@ OUT_NAME="${2:-shape-flower.png}"
 PORT=8765
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/src/assets/$OUT_NAME"
+OUT="$ROOT/assets/$OUT_NAME"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"; [[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null || true' EXIT
 

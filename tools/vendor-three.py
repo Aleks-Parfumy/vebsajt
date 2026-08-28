@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Vendor three.js into src/assets/vendor, so the site has no CDN dependency.
+"""Vendor three.js into assets/vendor, so the site has no CDN dependency.
 
     tools/vendor-three.py [version]        # default: the version below
 
 Downloads the core build plus every addon the site imports, following each
 addon's own imports so nothing is missed, and mirrors them under
 
-    src/assets/vendor/three/three.module.js
-    src/assets/vendor/three/addons/...
+    assets/vendor/three/three.module.js
+    assets/vendor/three/addons/...
 
-which is what the importmap in src/index.html points at. Files are stored
+which is what the importmap in index.html points at. Files are stored
 unmodified: bare 'three' imports inside the addons are resolved by that
 importmap at runtime, so upgrading is just re-running this script.
 """
@@ -20,7 +20,7 @@ import urllib.request
 
 DEFAULT_VERSION = '0.160.0'
 
-# Entry points: what src/*.js actually imports from 'three/addons/'.
+# Entry points: what *.js actually imports from 'three/addons/'.
 ENTRIES = [
     'examples/jsm/loaders/GLTFLoader.js',
     'examples/jsm/environments/RoomEnvironment.js',
@@ -31,7 +31,7 @@ ENTRIES = [
 ]
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-OUT = os.path.join(ROOT, 'src/assets/vendor/three')
+OUT = os.path.join(ROOT, 'assets/vendor/three')
 
 # `from '…'`, `import '…'`, `import('…')`. Over-matches strings in comments,
 # which is harmless: unresolvable ones are reported, not fetched.
@@ -52,7 +52,7 @@ def main(version):
 
     # Minified core: it is 650KB instead of 1.3MB and nobody reads it.
     write(os.path.join(OUT, 'three.module.js'), fetch('build/three.module.min.js'))
-    print(f'three@{version} core -> src/assets/vendor/three/three.module.js')
+    print(f'three@{version} core -> assets/vendor/three/three.module.js')
 
     seen, queue, unresolved = set(), list(ENTRIES), set()
     while queue:
@@ -73,7 +73,7 @@ def main(version):
             elif spec != 'three':
                 unresolved.add(spec)
 
-    print(f'{len(seen)} addon files -> src/assets/vendor/three/addons/')
+    print(f'{len(seen)} addon files -> assets/vendor/three/addons/')
     if unresolved:
         # Usually URLs quoted in comments; check before assuming a real dep.
         print('specifiers not vendored (check these are not real imports):')

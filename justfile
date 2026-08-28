@@ -7,14 +7,14 @@ default:
 
 # Serve the website locally in the background (logs to server.log, PID in server.pid)
 dev:
-    @nohup python3 -m http.server {{port}} -d src > server.log 2>&1 & echo $! > server.pid
+    @nohup python3 -m http.server {{port}} -d . > server.log 2>&1 & echo $! > server.pid
     @echo "Serving on http://localhost:{{port}} (PID $(cat server.pid), logs: server.log)"
 
-# Bake a piece of the intro model into a silhouette mask in src/assets
+# Bake a piece of the intro model into a silhouette mask in assets
 shape piece="Curve002" out="shape-flower.png":
     @tools/bake-shape.sh {{piece}} {{out}}
 
-# Bake an outline drawing (the ring artefact) into a mask in src/assets
+# Bake an outline drawing (the ring artefact) into a mask in assets
 artwork src="wetransfer_ap-materijali-za-www_2026-08-13_1949/RING_AP_ARTEFAKT_.png" out="shape-ring.png":
     @tools/bake-artwork.sh {{src}} {{out}}
 

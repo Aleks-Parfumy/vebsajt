@@ -9,8 +9,8 @@
 -->
 <html><head><meta charset="utf-8"><title>baking…</title>
 <script type="importmap">
-{"imports":{"three":"../src/assets/vendor/three/three.module.js",
-"three/addons/":"../src/assets/vendor/three/addons/"}}
+{"imports":{"three":"../assets/vendor/three/three.module.js",
+"three/addons/":"../assets/vendor/three/addons/"}}
 </script></head>
 <body>
 <div id="out"></div>
@@ -38,7 +38,7 @@ function fail(msg) {
   document.title = 'error';
 }
 
-new GLTFLoader().load('../src/assets/AP-site-3D_kosta.glb', (gltf) => {
+new GLTFLoader().load('../assets/AP-site-3D_kosta.glb', (gltf) => {
   scene.add(gltf.scene);
   gltf.scene.updateWorldMatrix(true, true);
 

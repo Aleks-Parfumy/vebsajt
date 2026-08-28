@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Turn a coloured drawing into a sprite for src/assets. The sibling of
+# Turn a coloured drawing into a sprite for assets. The sibling of
 # tools/bake-artwork.sh, which flattens a drawing into a CSS mask: here nothing
 # is thrown away, because the drawing is wanted for the colours it was drawn in.
 # Run via `just ring` or `just bloom`.
 #
 #   tools/colour-artwork.sh <source.png> [out-name] [height] [weight] [angle]
 #     source     the artwork, drawn on transparency
-#     out-name   file written to src/assets (default: shape-ring-colour-horizontal.png)
+#     out-name   file written to assets (default: shape-ring-colour-horizontal.png)
 #     height     height of the sprite in px (default: 300, a few times the
 #                size the site shows it at — it is a picture, not a mask, so
 #                every pixel costs)
@@ -50,7 +50,7 @@ WEIGHT="${4:-0}"
 ANGLE_IN="${5:-auto}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="$ROOT/src/assets/$OUT_NAME"
+OUT="$ROOT/assets/$OUT_NAME"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
