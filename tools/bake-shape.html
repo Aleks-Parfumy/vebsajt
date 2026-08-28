@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  Renders one piece of the intro model as a flat silhouette and emits it as a
+  PNG data URL in #out. Driven by tools/bake-shape.sh — not part of the site.
+
+  Query params:
+    piece  node name in the GLB (default Curve002)
+    size   render resolution before cropping (default 1024)
+-->
+<html><head><meta charset="utf-8"><title>baking…</title>
+<script type="importmap">
+{"imports":{"three":"../src/assets/vendor/three/three.module.js",
+"three/addons/":"../src/assets/vendor/three/addons/"}}
+</script></head>
+<body>
+<div id="out"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const params = new URLSearchParams(location.search);
+const PIECE = params.get('piece') || 'Curve002';
+const N = Number(params.get('size')) || 1024;
+
+const gl = document.createElement('canvas');
+gl.width = gl.height = N;
+const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0);
+renderer.setSize(N, N, false);
+
+const scene = new THREE.Scene();
+// White on transparent: the result is used as a CSS mask, so the colour lives
+// in the stylesheet, not in the image.
+scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+function fail(msg) {
+  document.getElementById('out').textContent = 'ERROR: ' + msg;
+  document.title = 'error';
+}
+
+new GLTFLoader().load('../src/assets/AP-site-3D_kosta.glb', (gltf) => {
+  scene.add(gltf.scene);
+  gltf.scene.updateWorldMatrix(true, true);
+
+  let target = null;
+  const names = [];
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    names.push(o.name);
+    o.visible = o.name === PIECE;
+    if (o.visible) target = o;
+  });
+  if (!target) return fail(`no mesh named "${PIECE}". Available: ${names.join(', ')}`);
+
+  // Frame it down +X, the axis the intro camera looks along (the model is a
+  // thin wall in the Y-Z plane), so the silhouette matches what the intro shows.
+  const box = new THREE.Box3().setFromObject(target);
+  const centre = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 2000);
+  const fit = Math.max(size.y, size.z) / 2 / Math.tan((35 * Math.PI / 180) / 2);
+  camera.position.set(centre.x + fit * 1.05, centre.y, centre.z);
+  camera.lookAt(centre);
+  renderer.render(scene, camera);
+
+  // Crop to the alpha bounding box and centre that in a square canvas, so the
+  // shape sits dead-centre in its button and stays centred when rotated.
+  const src = document.createElement('canvas');
+  src.width = src.height = N;
+  const ctx = src.getContext('2d');
+  ctx.drawImage(gl, 0, 0);
+  const px = ctx.getImageData(0, 0, N, N).data;
+  let x0 = N, y0 = N, x1 = -1, y1 = -1;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (px[(y * N + x) * 4 + 3] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return fail('piece rendered empty');
+
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  const side = Math.max(w, h);
+  const out = document.createElement('canvas');
+  out.width = out.height = side;
+  // 9-arg drawImage: source rect -> destination rect. The short form takes
+  // destination coords only, which crops the wrong edge.
+  out.getContext('2d').drawImage(src, x0, y0, w, h, (side - w) / 2, (side - h) / 2, w, h);
+
+  document.getElementById('out').textContent = out.toDataURL('image/png');
+  document.title = `ready ${w}x${h} in ${side}`;
+}, undefined, (err) => fail('failed to load the model: ' + err));
+</script>
+</body></html>

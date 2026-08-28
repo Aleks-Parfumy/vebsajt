@@ -1,0 +1,2283 @@
+:root {
+  --strip-height: 2.75rem;
+
+  /* The accent colour, site-wide: brushed/polished silver — a specular
+     highlight sweeping across metal, dim at both edges and bright in the
+     middle — rather than a flat colour. Same stops everywhere, so every
+     gradient-filled or gradient-text element reads as one material lit
+     from the same angle, just cropped to that element's own box.
+     --iris-solid is the one place a true gradient isn't possible (outlines
+     can't paint one) — a single stop pulled from the middle of it, where
+     the highlight is brightest. */
+  --iris-1: #6b6e74;
+  --iris-2: #b6b9c0;
+  --iris-3: #f5f6f8;
+  --iris-4: #b6b9c0;
+  --iris-5: #6b6e74;
+  --iris-gradient: linear-gradient(
+    115deg,
+    var(--iris-1) 0%,
+    var(--iris-2) 25%,
+    var(--iris-3) 50%,
+    var(--iris-4) 75%,
+    var(--iris-5) 100%
+  );
+  --iris-solid: var(--iris-3);
+
+  /* The one warm accent on the site: a polished-gold version of the iris
+     material, lit from the same angle. Worn by the AP monograms that stand for
+     the site itself. Only the sidebar's active mark reads this — the other two
+     (floating on the contact page, and on the glitching screen on home) are
+     rendered 3D rather than CSS, so logo.js carries its own gold to match. */
+  --gold-1: #6f4e12;
+  --gold-2: #c79a3f;
+  --gold-3: #fce6a6;
+  --gold-4: #c79a3f;
+  --gold-5: #6f4e12;
+  --gold-gradient: linear-gradient(
+    115deg,
+    var(--gold-1) 0%,
+    var(--gold-2) 25%,
+    var(--gold-3) 50%,
+    var(--gold-4) 75%,
+    var(--gold-5) 100%
+  );
+
+  /* Typography, per the brand direction: Beirut for display/headings (Latin
+     and Arabic), Hiragino Maru Gothic ProN for running text. Neither is a
+     free webfont — until licensed woff2 files are dropped in (see the
+     @font-face block below), Beirut resolves only where it's installed
+     locally and Hiragino only on macOS/iOS, so both stacks name a fallback
+     of similar colour and width to keep the layout intact everywhere else. */
+  --font-heading: "Beirut", "Hiragino Mincho ProN", "Times New Roman", serif;
+  --font-body: "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro",
+    "Hiragino Sans", "Varela Round", system-ui, -apple-system, sans-serif;
+}
+
+/* Drop licensed woff2 files into assets/fonts and uncomment to serve Beirut
+   to every visitor rather than only to machines that already have it.
+@font-face {
+  font-family: "Beirut";
+  src: url("assets/fonts/beirut.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+*/
+
+/* Every plain (non-interactive) accent-coloured text on the site, grouped so
+   the gradient-text technique — a `color` can't hold a gradient — is written
+   once. Text whose colour also changes with hover/press state is handled
+   at that rule instead, since inverting a clipped background back to a
+   plain colour needs more than overriding `color`. */
+.home-news-date,
+.home-featured-line,
+.scent-detail-tagline {
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-body);
+  background: #0e0e10;
+  color: #f2f2f2;
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* ---- 3D intro overlay ---- */
+#intro {
+  position: fixed;
+  inset: 0;
+  cursor: pointer;
+  background: #0e0e10;
+}
+
+#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+#hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.4;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+/* Once the click has landed there is nothing left to tell anyone: the words go,
+   and the blast has the screen to itself. Faded rather than dropped, so it
+   leaves at the pace of everything else on the way out. */
+#hint.is-spent {
+  opacity: 0;
+}
+
+/* ---- Revealed site ---- */
+#site {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0e0e10;
+}
+
+#site h1 {
+  font-size: 2.5rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Scrollbars ----
+   Hidden site-wide. Several panels scroll inside themselves — the atelier's
+   copy, a scent's story, the collection beside the field — and a bar surfacing
+   in the middle of the page cuts across the material everything else is made
+   of. Only the bar goes: wheel, trackpad, touch and keyboard all scroll as
+   they did. */
+* {
+  scrollbar-width: none;    /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none;            /* Chrome, Safari */
+}
+
+/* ---- Shapes ---- */
+/* Pieces of the intro model, baked from the GLB to silhouette masks
+   (see tools/bake-shape.sh). --rot is a shape's resting angle and --flip
+   mirrors it; anything animating a shape adds to --rot rather than replacing
+   it, so a shape keeps the angle it was placed at.
+
+   This is the base class every shape builds on, so it is declared before the
+   views: a variant that restates `transform` needs to come later in the file to
+   win on equal specificity. */
+.shape {
+  --rot: 0deg;
+  --flip: 1; /* -1 mirrors the shape, so a pair can face each other */
+  background: var(--iris-gradient);
+  -webkit-mask: url('assets/shape-flower.png') center / contain no-repeat;
+  mask: url('assets/shape-flower.png') center / contain no-repeat;
+  transform: scaleX(var(--flip)) rotate(var(--rot));
+}
+
+/* The AP monogram, the piece the intro assembles around. Source art is
+   mirrored, so flip it back the right way round. */
+.shape--logo {
+  --flip: -1;
+  -webkit-mask-image: url('assets/shape-logo.png');
+  mask-image: url('assets/shape-logo.png');
+}
+
+/* The largest piece in the model. */
+.shape--large {
+  -webkit-mask-image: url('assets/shape-flower-large.png');
+  mask-image: url('assets/shape-flower-large.png');
+}
+
+/* The bloom the scents page hangs. Same flower, but the coloured drawing of it
+   rather than a mask cut from the model (see tools/colour-artwork.sh): it is
+   painted in the iridescent colours it was drawn in, so it is a picture, and
+   the mask the other shapes are cut from has to be lifted off it. Still a
+   .shape, so it turns with --rot and --flip like the rest. */
+.shape--flower-colour {
+  background: url('assets/shape-flower-colour.png') center / contain no-repeat;
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* The ring artefact — not from the model, but from the drawing of it, baked the
+   same way (see tools/bake-artwork.sh). It is the only shape that is taller than
+   it is wide, so it fits its box by height. */
+.shape--ring {
+  -webkit-mask-image: url('assets/shape-ring.png');
+  mask-image: url('assets/shape-ring.png');
+}
+
+/* The ring the sidebar wears, whose buttons all carry one with the page title
+   sitting in the hole at its centre. The coloured drawing again, laid on its
+   side (see .shape--flower-colour above for why it is a picture, not a mask). */
+.shape--ring-horizontal {
+  background: url('assets/shape-ring-colour-horizontal.png') center / contain no-repeat;
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* The artefact the Parfum Finder's invitation is flanked by: the wing drawing
+   in the colours it was drawn in, a picture rather than a mask for the same
+   reason as .shape--flower-colour above. Baked as drawn rather than laid level
+   (see `just finder-glyph`), because the pair is turned by the CSS that places
+   it — see .finder-glyph. */
+.shape--finder-artefact {
+  background: url('assets/shape-finder-artefact.png') center / contain no-repeat;
+  -webkit-mask: none;
+  mask: none;
+}
+
+/* ---- Views ---- */
+/* Everything sits right of the sidebar and above the strip. */
+.view {
+  position: absolute;
+  left: 10.5rem;
+  right: 0;
+  top: 0;
+  bottom: var(--strip-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Home ---- */
+/* Three columns: the news over the film on the left, the glitching screen in
+   the middle, and on the right the featured scent with the discovery set right
+   under it. The middle and right columns both span the two upper rows and sit
+   at the top of that span, so their own heights never push the film down; the
+   second row takes the slack. Where this started signs off the page from
+   outside the grid entirely — see #home-est. */
+#home {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 2rem 2.5rem;
+  padding: 3rem;
+}
+
+.home-eyebrow {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+  margin-bottom: 0.75rem;
+}
+
+#home-news {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  width: min(28rem, 100%);
+}
+
+.home-news-date {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.home-news-title {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.75rem;
+}
+
+.home-news-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.65;
+}
+
+/* The right-hand column: the featured card and the discovery set, one small
+   step apart rather than pushed to opposite ends of the page. The two of them
+   together run past the rows they span on anything short of a tall window, so
+   the column scrolls inside itself rather than spilling off the foot of the
+   page. It fills its span to have a height to scroll within, and min-height is
+   what lets it be shorter than its contents — without it a grid item refuses to
+   shrink below them, which is also what kept the discovery set cut off. */
+#home-aside {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: stretch;
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.home-featured-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 13rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.home-featured-photo {
+  width: 100%;
+  height: 9rem;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  opacity: 0.85;
+  transition: opacity 0.3s ease;
+}
+
+.home-featured-name {
+  font-size: 1.25rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.35rem;
+}
+
+.home-featured-line {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.home-featured-card:hover .home-featured-photo,
+.home-featured-card:focus-visible .home-featured-photo,
+.home-featured-card.is-pressed .home-featured-photo {
+  opacity: 1;
+}
+
+.home-featured-card:focus-visible {
+  outline: 1px solid var(--iris-solid);
+  outline-offset: 0.5rem;
+}
+
+#home-video {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  width: min(42rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.home-video-title {
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* The frame and its caption run side by side, not stacked, so the caption
+   stays within view instead of pushing below the fold on a short viewport. */
+.home-video-body {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  min-height: 0;
+}
+
+/* A real device's bezel, worn by both screens on this page (the film, and the
+   glitching one beside the news): the brushed-silver material the rest of the
+   site is lit with, cast as an actual raised frame — rounded corners, a
+   slightly deeper chin at the bottom, beveled edges (a bright top rim, a dark
+   lower rim) and a soft drop shadow lifting it off the page. A status light
+   sits in the chin where a device's would. */
+.screen-bezel {
+  position: relative;
+  padding: 0.9rem 0.9rem 1.7rem;
+  background: var(--iris-gradient);
+  border-radius: 0.9rem;
+  box-shadow:
+    /* lift off the page */
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 3px 10px rgba(0, 0, 0, 0.35),
+    /* beveled metal edges */
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1.5px 2px rgba(0, 0, 0, 0.35),
+    inset 1px 0 0 rgba(255, 255, 255, 0.18),
+    inset -1px 0 0 rgba(0, 0, 0, 0.22);
+}
+
+.screen-bezel::after {
+  content: '';
+  position: absolute;
+  right: 1.1rem;
+  bottom: 0.7rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: #f5f6f8; /* the power light, lit — kept on the silver palette */
+  box-shadow:
+    0 0 5px rgba(245, 246, 248, 0.9),
+    inset 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* The glass inside a bezel: black, with a surround and an inset shadow seating
+   it down into the metal. */
+.screen-glass {
+  background: #000;
+  border-radius: 0.25rem;
+  box-shadow:
+    0 0 0 2px #0c0c0e,               /* black glass surround inside the bezel */
+    inset 0 0 0 1px rgba(0, 0, 0, 0.9),
+    0 2px 6px rgba(0, 0, 0, 0.6);    /* screen recessed below the metal */
+}
+
+.home-video-frame {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+
+/* The film is 16:9. Sized by width, with the height following from the aspect
+   ratio — the frame is inside a column that only takes as much height as it
+   needs, so a percentage height would have nothing to resolve against. */
+.home-video-frame video {
+  display: block;
+  width: 100%;
+  max-height: 34vh;
+  height: auto;
+}
+
+.home-video-caption {
+  flex: 1 1 40%;
+  min-width: 10rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  opacity: 0.6;
+}
+
+/* ---- The glitching screen ---------------------------------------------------
+   A second screen in the film's bezel, between the news and the featured card,
+   holding two pictures in turn: the monogram in gold, then what the house is.
+   home.js swaps them, and the swap happens mid-glitch — the picture breaks up
+   first, changes over while it is broken, then settles. */
+#home-manifesto {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: start;
+  width: clamp(17rem, 20vw, 20rem);
+}
+
+/* Both pictures are stacked in the one box and only differ in opacity, so the
+   screen keeps a single size whichever is showing — hence a fixed ratio rather
+   than a height taken from whatever the text happens to wrap to. */
+.home-manifesto-screen {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+/* Scanlines, always on: the thing that says "screen" rather than "black box"
+   even while nothing is glitching. */
+.home-manifesto-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* The row and column are sized from the pane, not from what sits in them. The
+   monogram below asks for a percentage of its row, and a content-sized row
+   would take that percentage from the canvas's own drawing buffer — which
+   logo.js sets in device pixels, so on a 2x or 3x screen it is twice or three
+   times the size the canvas has on the page. The monogram would then be sized
+   off that inflated figure, grow past the glass, and get cropped off-centre.
+   It only bites on the first layout: a later resize measures a settled box and
+   settles it, which is why it looked right the moment the window changed. */
+.home-manifesto-pane {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.home-manifesto-pane.is-on {
+  opacity: 1;
+}
+
+/* The monogram: the 3D artwork in gold metal, drawn onto its own canvas (see
+   logo.js), rocking gently so the light travels over it. Sized by height and
+   kept square, since the screen itself is not square on a phone. */
+.home-manifesto-logo {
+  display: block;
+  height: 68%;
+  aspect-ratio: 1 / 1;
+  /* Belt and braces against the above: whatever it is sized from, it never
+     grows past the glass it has to stay centred in. */
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.home-manifesto-text {
+  font-size: clamp(0.7rem, 0.8vw, 0.8rem);
+  line-height: 1.7;
+  text-align: center;
+  text-wrap: pretty;
+  color: rgba(242, 242, 242, 0.92);
+}
+
+/* The break-up. Both panes take it, the hidden one included — opacity is left
+   well alone here so that the pane being swapped in stays invisible until
+   home.js hands it over. */
+.home-manifesto-screen.is-glitching .home-manifesto-pane {
+  animation: manifesto-tear 0.42s steps(1, end) both;
+}
+
+.home-manifesto-screen.is-glitching::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(198, 214, 255, 0.16) 45%,
+    rgba(255, 255, 255, 0.28) 55%,
+    transparent
+  );
+  animation: manifesto-band 0.42s linear both;
+}
+
+/* Slices of the picture torn sideways, with the colour pulling apart at the
+   edges the way a bad signal splits it. */
+@keyframes manifesto-tear {
+  0%   { clip-path: inset(0); transform: none; filter: none; }
+  8%   { clip-path: inset(4% 0 76% 0);  transform: translateX(-7%);
+         filter: drop-shadow(3px 0 0 rgba(255, 40, 90, 0.55))
+                 drop-shadow(-3px 0 0 rgba(60, 220, 255, 0.55)); }
+  18%  { clip-path: inset(38% 0 40% 0); transform: translateX(6%); }
+  30%  { clip-path: inset(68% 0 14% 0); transform: translateX(-4%);
+         filter: drop-shadow(-4px 0 0 rgba(60, 220, 255, 0.6)); }
+  42%  { clip-path: inset(14% 0 58% 0); transform: translateX(9%);
+         filter: drop-shadow(4px 0 0 rgba(255, 40, 90, 0.6)); }
+  54%  { clip-path: inset(0); transform: translateX(-2%); filter: none; }
+  64%  { clip-path: inset(52% 0 26% 0); transform: translateX(5%);
+         filter: drop-shadow(3px 0 0 rgba(255, 40, 90, 0.45))
+                 drop-shadow(-3px 0 0 rgba(60, 220, 255, 0.45)); }
+  76%  { clip-path: inset(24% 0 66% 0); transform: translateX(-6%); }
+  88%  { clip-path: inset(0); transform: translateX(1%); }
+  100% { clip-path: inset(0); transform: none; filter: none; }
+}
+
+/* The bright band that rolls down the glass while it is broken. */
+@keyframes manifesto-band {
+  from { top: -20%; }
+  to   { top: 100%; }
+}
+
+/* Same width as the featured card above it, and right-aligned to match — but a
+   figure, not a button, since it goes nowhere. */
+#home-discovery {
+  width: 13rem;
+  text-align: right;
+}
+
+.home-discovery-photo {
+  width: 100%;
+  height: 7rem;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  opacity: 0.85;
+}
+
+.home-discovery-line {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  opacity: 0.65;
+}
+
+/* The copy is three beats, so they need a gap between them — the same as the
+   invitation on the finder and the atelier's own paragraphs. */
+.home-discovery-line + .home-discovery-line {
+  margin-top: 0.75rem;
+}
+
+/* Centred on the window rather than on the view: the sidebar is part of the
+   page this signs off, so the middle it sits under is the middle of all of it,
+   not of what is left beside the sidebar. Dropped to just clear of the strip
+   along the bottom, and fixed rather than placed in the grid — the right-hand
+   column above scrolls now, and anything sharing the foot of the grid with it
+   would be sat on when it overran. */
+#home-est {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--strip-height) + 0.75rem);
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+  white-space: nowrap;
+}
+
+/* ---- Scents ---- */
+/* The field (left 2/3) and the collection panel beside it (right 1/3, title
+   over the photo), filling the view between them; a single scent's own page
+   (#scent-detail) replaces the lot. Phone reorders all three into one column
+   (see the phone breakpoint below) — title, then field, then photo and text —
+   which is what grid-template-areas is for here rather than plain flex. */
+#scent-overview {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "field title"
+    "field info";
+}
+
+#scent-field {
+  grid-area: field;
+  position: relative;
+  height: 100%;
+}
+
+#scent-collection-title {
+  grid-area: title;
+  padding: 3rem 3rem 0 2.5rem;
+  border-left: 1px solid rgba(242, 242, 242, 0.12);
+}
+
+/* The photograph and the copy under it, centred in what the title leaves. They
+   scroll inside this box when there is more of them than there is room: a grid
+   item will not shrink below its contents on its own, hence min-height, and
+   `safe` centring falls back to the top edge once it overflows, so the start of
+   the panel can still be reached. */
+#scent-collection-info {
+  grid-area: info;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  padding: 1.5rem 3rem 3rem 2.5rem;
+  border-left: 1px solid rgba(242, 242, 242, 0.12);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scent-collection-name {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+/* The campaign image, shown whole: it carries its title across the top and the
+   atelier's mark along the bottom, and a crop loses one or the other. So it is
+   scaled to fit rather than filled into a band — width and height both left to
+   the picture's own proportions, held inside what the panel can give it, and
+   centred rather than stretched (a flex item would otherwise be pulled to the
+   panel's full width and squashed to the ceiling below). The ceiling keeps it
+   from crowding out the copy under it on a deep screen. */
+.scent-collection-photo {
+  align-self: center;
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(26rem, 45vh);
+  margin-bottom: 1.5rem;
+  opacity: 0.85;
+}
+
+.scent-collection-description {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.7;
+}
+
+/* The copy is two paragraphs — what the collection is, then what is in it. */
+.scent-collection-description + .scent-collection-description {
+  margin-top: 1rem;
+}
+
+/* Each bloom is a group anchored to the top of the field: a string and its
+   shape swinging together as one rigid piece (see .scent-bloom below), plus
+   the name, which sits outside that piece so it never swings with it. */
+.scent-bloom-group {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  transform: translateX(-50%);
+}
+
+/* Reaches from the top of the field down to the shape (height set inline by
+   scents.js) — tall enough that rotating it from its own top edge, where the
+   string is really anchored, swings the whole string like a pendulum rather
+   than just spinning the shape in place. Nothing here is a hit target except a
+   disc over the shape's own body (see .scent-shape::after): the empty reach of
+   the string, and the transparent margins of the shape's box, cannot block a
+   neighbour underneath — nor falsely highlight the shape when the cursor is
+   only near it or on the string. */
+.scent-bloom {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transform-origin: 50% 0%;
+  pointer-events: none;
+}
+
+.scent-string {
+  position: absolute;
+  top: 0;
+  /* Reaches to the shape's centre, not its base, and sits behind it — z-index
+     so paint order can't be left to flex's own fallback ordering. */
+  bottom: calc(var(--size, 6rem) / 2);
+  left: 50%;
+  width: 1px;
+  z-index: 0;
+  background: rgba(242, 242, 242, 0.3);
+  transform: translateX(-50%);
+  /* Purely decorative: it must never be a hit target, so it can neither
+     highlight the shape nor interrupt the swing. (It already inherits `none`
+     from .scent-bloom; stated here so it stays true on its own.) */
+  pointer-events: none;
+}
+
+.scent-shape {
+  display: block;
+  position: relative;
+  z-index: 1;
+  width: var(--size, 6rem);
+  height: var(--size, 6rem);
+  opacity: 0.8;
+  /* The square box is mostly transparent — the flower is a sparse outline that
+     leaves the corners and a strip at top and bottom empty, with the string
+     passing through that top strip. So the box itself catches nothing; the disc
+     below is the only hit target. */
+  pointer-events: none;
+  transition: transform 0.6s ease, opacity 0.3s ease;
+}
+
+/* The real hit target: a disc sitting over the flower's body. Inset so its top
+   meets where the flower actually begins (~12% down), it excludes the empty top
+   strip the string runs through and the four corners — so the shape highlights
+   and swings only when the cursor is genuinely on it, not merely near it. A
+   transparent pseudo-element paints nothing; hovering it still lands :hover on
+   the shape and .scent-bloom above (and a tap still targets the shape), so the
+   swing and the click both fire exactly as before. */
+.scent-shape::after {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  pointer-events: auto;
+}
+
+.scent-name {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+}
+
+.scent-bloom:hover .scent-shape,
+.scent-bloom.is-swinging .scent-shape,
+.scent-bloom:focus-visible .scent-shape,
+.scent-bloom.is-pressed .scent-shape {
+  transform: scaleX(var(--flip)) rotate(var(--rot)) scale(1.08);
+  opacity: 1;
+}
+
+/* The string is part of what's rotating (see .scent-bloom above), so this
+   sweeps the shape sideways at the bottom of a long lever arm — a pendulum,
+   not a wobble — even though the rotation angles themselves stay modest.
+
+   Triggered by the .is-swinging class (added by scents.js when the cursor
+   enters the shape), not by :hover: the swing moves the shape out from under
+   the cursor, which would drop :hover and cut a hover-driven animation short.
+   The class is held for the animation's full length instead, so it completes.
+   Keyboard focus and the touch press still drive it directly — neither moves
+   a cursor, so neither can be interrupted. */
+.scent-bloom.is-swinging,
+.scent-bloom:focus-visible,
+.scent-bloom.is-pressed {
+  animation: scent-swing 1.5s ease-out;
+}
+
+@keyframes scent-swing {
+  0%   { transform: rotate(0deg); }
+  12%  { transform: rotate(8deg); }
+  30%  { transform: rotate(-5.5deg); }
+  48%  { transform: rotate(3deg); }
+  66%  { transform: rotate(-1.5deg); }
+  83%  { transform: rotate(0.5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.scent-bloom-group:hover .scent-name,
+.scent-bloom-group:focus-within .scent-name {
+  opacity: 1;
+}
+
+.scent-bloom:focus-visible .scent-shape {
+  outline: 1px solid var(--iris-solid);
+  outline-offset: 0.5rem;
+}
+
+/* ---- A single scent ---- */
+/* Text on the left, the bottle and its notes on the right. The page never
+   scrolls, so the story is the one part allowed to scroll inside itself. */
+#scent-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  /* The two columns and nothing above them — the way back is the bloom in the
+     sidebar. The row takes what is left and no more, so the story inside it
+     still scrolls rather than pushing the page taller. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0 3.5rem;
+  width: min(62rem, 88%);
+  max-height: calc(100% - 4rem);
+  padding: 1rem 0;
+}
+
+.scent-detail-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* lets the story shrink instead of pushing the page taller */
+}
+
+.scent-detail-name {
+  font-size: 2.25rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.scent-detail-tagline {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  opacity: 0.85;
+  margin-bottom: 2rem;
+}
+
+.scent-detail-story {
+  overflow-y: auto;
+  min-height: 0;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.65;
+}
+
+.scent-detail-story p + p {
+  margin-top: 1rem;
+}
+
+.scent-detail-photo {
+  width: 100%;
+  height: min(34vh, 15rem);
+  object-fit: cover;
+  display: block;
+}
+
+.scent-detail-notes {
+  margin-top: 1.5rem;
+  /* keeps a gap when the column is short enough that margin-top:auto on the
+     inquire button collapses to nothing */
+  margin-bottom: 1.75rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scent-detail-notes h3 {
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+  margin-bottom: 0.75rem;
+}
+
+/* The pyramid: every note in its own little box, and the boxes gathered into
+   the three rows the perfume is written in — top, middle, base — each row
+   named and boxed in turn. The long rows wrap to two lines of notes, so a rule
+   between rows left no way to tell a wrap from the next layer down; a box that
+   holds the whole row, with its name at the top left, does. The row's frame is
+   drawn stronger than the notes inside it, so the grouping reads first. */
+.scent-detail-notes ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.scent-detail-notes li {
+  border: 1px solid rgba(242, 242, 242, 0.28);
+  background: rgba(242, 242, 242, 0.02);
+  padding: 0.4rem 0.5rem 0.45rem;
+}
+
+.scent-note-label {
+  display: block;
+  font-size: 0.5rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 0.4rem;
+}
+
+.scent-note-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.35rem;
+}
+
+.scent-note {
+  border: 1px solid rgba(242, 242, 242, 0.14);
+  padding: 0.22rem 0.45rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+}
+
+.scent-inquire {
+  margin-top: auto; /* pinned to the bottom of the column */
+  padding: 0.9rem 1.5rem;
+  background: none;
+  border: 1px solid transparent;
+  border-image: var(--iris-gradient) 1;
+  color: var(--iris-solid);
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.scent-inquire:hover,
+.scent-inquire:focus-visible,
+.scent-inquire.is-pressed {
+  background: var(--iris-gradient);
+  color: #0e0e10;
+  outline: none;
+}
+
+/* ---- Atelier ---- */
+/* The photograph fills the view; the text sits over it, left of centre. */
+#atelier-backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Keeps the text readable whichever photograph comes up. The middle stop sits
+   where the text's right edge does, so the copy is dark all the way across and
+   the photograph only comes up in what is left beyond it. */
+#atelier-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(14, 14, 16, 0.9) 0%,
+    rgba(14, 14, 16, 0.72) 56%,
+    rgba(14, 14, 16, 0.35) 100%
+  );
+}
+
+#atelier-text {
+  position: relative;
+  /* Half the view, so the copy reads across the photograph rather than down a
+     narrow column beside it, while the photograph keeps the other half to
+     itself. The phone sets its own width (see below), and this never runs into
+     the right-hand edge: the widest it gets is this plus the 4rem it is inset
+     by. */
+  width: 50%;
+  margin-right: auto;
+  margin-left: 4rem;
+  /* The text is longer than the panel it sits in on a short window, and the
+     view itself never scrolls — so it scrolls inside its own box, the way the
+     phone's does and the way a scent's story does. */
+  max-height: calc(100% - 4rem);
+  overflow-y: auto;
+}
+
+#atelier-text h2 {
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.25rem;
+}
+
+#atelier-text p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  opacity: 0.75;
+}
+
+/* The copy is four paragraphs, so they need a gap between them; the last one
+   ends the panel and takes none. */
+#atelier-text p + p {
+  margin-top: 1rem;
+}
+
+/* ---- Contact ---- */
+#contact-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 4rem;
+  width: min(58rem, 88%);
+  max-height: calc(100% - 4rem);
+}
+
+.contact-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.contact-title,
+.contact-form-title {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.5rem;
+}
+
+#contact-links,
+#contact-email {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* The "Email" heading sits under the socials list, so it needs the gap the
+   first title gets from the top of the column. */
+#contact-links + .contact-title {
+  margin-top: 2.5rem;
+}
+
+.contact-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(242, 242, 242, 0.14);
+  padding-bottom: 0.9rem;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+.contact-link-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+.contact-link-handle {
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.contact-link:hover,
+.contact-link:focus-visible,
+.contact-link.is-pressed {
+  border-bottom: 1px solid transparent;
+  border-image: var(--iris-gradient) 1;
+  outline: none;
+}
+
+/* The gradient can't be a `color`, so it goes on .contact-link's own text —
+   its two children, since color (unlike background) inherits but a clipped
+   background does not: setting it on the anchor alone would leave the
+   labels merely transparent instead of gradient-filled. */
+.contact-link:hover .contact-link-label,
+.contact-link:hover .contact-link-handle,
+.contact-link:focus-visible .contact-link-label,
+.contact-link:focus-visible .contact-link-handle,
+.contact-link.is-pressed .contact-link-label,
+.contact-link.is-pressed .contact-link-handle {
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* The floating monogram below the links: the intro's 3D anchor piece in plain
+   golden metal, drawn onto its own canvas (see logo.js) rather than a
+   masked PNG. The turn and the float happen in the render loop now, so the CSS
+   only has to give the canvas room. */
+.contact-logo {
+  margin-top: auto; /* settle at the foot of the column, level with the form */
+  padding-top: 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+#contact-logo-canvas {
+  width: 12rem;
+  height: 12rem;
+}
+
+/* The inline form has no popup panel around it. */
+#contact-form .inquiry-form {
+  padding: 0;
+  background: none;
+  border: 0;
+  overflow-y: auto;
+}
+
+/* ---- Inquiry popup ---- */
+/* Left on the UA's position: fixed, which is what centres a modal dialog —
+   overriding it drops the popup into the top-left corner. */
+#inquiry {
+  /* the UA centres a modal dialog with margin:auto inside inset:0, which the
+     universal margin reset at the top of this file would otherwise undo */
+  margin: auto;
+  width: min(30rem, 90vw);
+  max-height: 90vh;
+  padding: 0;
+  border: 0;
+  background: none; /* the shape behind the form is the panel */
+  color: #f2f2f2;
+  overflow: visible;
+}
+
+#inquiry::backdrop {
+  background: rgba(8, 8, 10, 0.82);
+}
+
+/* The biggest piece of the model, filling the popup behind the form. */
+.inquiry-shape {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40rem;
+  height: 40rem;
+  max-width: 150vw;
+  max-height: 150vh;
+  /* .shape is defined later in this file, so its transform would win on equal
+     specificity: restate it here rather than rely on source order */
+  transform: translate(-50%, -50%) scaleX(var(--flip)) rotate(var(--rot));
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.inquiry-form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2.5rem;
+  background: rgba(14, 14, 16, 0.82);
+  border: 1px solid rgba(255, 225, 25, 0.35);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.inquiry-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit; /* the × is text — buttons don't inherit the body font */
+  font-size: 1.5rem;
+  line-height: 1;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.inquiry-close:hover,
+.inquiry-close:focus-visible,
+.inquiry-close.is-pressed {
+  opacity: 1;
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  outline: none;
+}
+
+.inquiry-eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+.inquiry-scent {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.inquiry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.inquiry-field em {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+.inquiry-field input,
+.inquiry-field textarea {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(242, 242, 242, 0.2);
+  color: #f2f2f2;
+  font: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 0.65rem 0.75rem;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.inquiry-field input:focus,
+.inquiry-field textarea:focus {
+  border-color: transparent;
+  border-image: var(--iris-gradient) 1;
+  outline: none;
+}
+
+/* The spam honeypot: out of sight and out of the tab order for people, still
+   there in the markup for the bots that fill in every field they find. */
+.inquiry-botcheck {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+}
+
+.inquiry-error {
+  font-size: 0.8rem;
+  color: #ff8f6b;
+}
+
+.inquiry-done {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.inquiry-send {
+  margin-top: 0.5rem;
+  padding: 0.9rem 1.5rem;
+  background: none;
+  border: 1px solid transparent;
+  border-image: var(--iris-gradient) 1;
+  color: var(--iris-solid);
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.inquiry-send:hover:not(:disabled),
+.inquiry-send:focus-visible:not(:disabled),
+.inquiry-send.is-pressed:not(:disabled) {
+  background: var(--iris-gradient);
+  color: #0e0e10;
+  outline: none;
+}
+
+.inquiry-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Scent finder ---- */
+#finder-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#finder-panel {
+  position: relative;
+  width: min(34rem, 80%);
+  text-align: center;
+  transition: opacity 0.25s ease;
+}
+
+#finder-panel.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.finder-step {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  opacity: 0.45;
+  margin-bottom: 1.25rem;
+}
+
+.finder-question {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  margin-bottom: 2rem;
+}
+
+.finder-intro,
+.finder-result {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  opacity: 0.7;
+  margin-bottom: 2rem;
+}
+
+/* The invitation is three paragraphs (see renderStart), so they sit closer to
+   each other than the block does to the Begin button under it — near enough to
+   read as one passage, far enough apart to read as three beats. */
+.finder-intro {
+  width: min(26rem, 100%);
+  margin-inline: auto;
+  margin-bottom: 1rem;
+}
+
+.finder-intro:last-of-type {
+  margin-bottom: 2rem;
+}
+
+/* The invitation with an artefact either side of it, each turned in towards the
+   text. They are decoration and nothing else: out of the flow, so the
+   paragraphs keep the width and the centring they had on their own, and out of
+   the accessibility tree (see renderStart in scent-finder.js).
+
+   Off by default, and switched on only once the panel's flanks have the room
+   for them — narrower than that and the pair would sit on top of the text, so a
+   phone never sees them. 1000px is where the view either side of a 34rem panel
+   is wide enough for a glyph and its gap with room to spare. */
+.finder-intro-block {
+  position: relative;
+}
+
+.finder-glyph {
+  display: none;
+}
+
+@media (min-width: 1000px) {
+  .finder-glyph {
+    display: block;
+    position: absolute;
+    top: 50%;
+    width: clamp(5rem, 8vw, 8.5rem);
+    aspect-ratio: 329 / 420; /* the sprite's own proportions */
+    opacity: 0.5;
+    pointer-events: none;
+    /* .shape's transform with the centring this placement needs folded into it.
+       Restated rather than added to, so it has to come after .shape in the
+       file — it does. */
+    transform: translateY(-50%) scaleX(var(--flip)) rotate(var(--rot));
+  }
+
+  .finder-glyph--left {
+    right: 100%;
+    margin-right: 1.5rem;
+    --rot: -12deg;
+  }
+
+  /* Mirrored, so the two lean in towards the text rather than both one way. */
+  .finder-glyph--right {
+    left: 100%;
+    margin-left: 1.5rem;
+    --flip: -1;
+    --rot: -12deg;
+  }
+}
+
+/* The photograph and the two actions side by side rather than stacked: the
+   result is the tallest screen in the finder, and stacked it ran off the
+   bottom of the panel. */
+.finder-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* With no draw there is no alternate line under it, and that margin would only
+   hang off the bottom and push the centred panel up off its middle. */
+.finder-result-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Beside the buttons, the photograph is what gives up width when a long scent
+   name makes them wide — cropping it a little further is less noticeable than
+   a button whose words no longer fit on one line. */
+.finder-result-photo {
+  width: min(20rem, 100%);
+  height: 14rem;
+  flex-shrink: 1;
+  min-width: 0;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+/* Both actions the width of the wider of the two: the column takes only the
+   width its widest button asks for, and each button then fills it.
+   Both selectors name .finder-answers as well, only to outweigh the rules
+   further down that these override — those come later in the file, so matching
+   their specificity would not be enough. */
+.finder-answers.finder-result-actions {
+  flex-shrink: 0;
+  width: max-content;
+  gap: 0.75rem;
+}
+
+/* Undoes the shrink-to-its-own-words sizing the shared rule gives these two,
+   which is still what the single Begin button on the first screen wants. */
+.finder-answers.finder-result-actions button[data-view-scent],
+.finder-answers.finder-result-actions button[data-restart] {
+  width: 100%;
+  margin-inline: 0;
+}
+
+/* The alternate suggestion under the photograph. Dimmed with a translucent
+   colour rather than `opacity`, unlike .finder-result above it — the opacity
+   would apply to the link inside too, and take the edge off its gradient just
+   when hovering it is meant to make it the brightest thing in the line. */
+.finder-alt {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(242, 242, 242, 0.7);
+}
+
+/* A link, not a button: it names a scent inside a sentence, so it is set in
+   the running text and underlined rather than boxed like the two below it. */
+.finder-alt-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(242, 242, 242, 0.3);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+/* The same gradient fill every other link on the site takes on hover, with the
+   underline turning to match. */
+.finder-alt-link:hover,
+.finder-alt-link:focus-visible,
+.finder-alt-link.is-pressed {
+  border-bottom-color: transparent;
+  border-image: var(--iris-gradient) 1;
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  outline: none;
+}
+
+/* Begin / Start again / View the result: one button, sized to its words
+   rather than the column of answers it sits in. Two on the result screen
+   stack with a gap instead of the column's usual flush borders. */
+.finder-answers button[data-start],
+.finder-answers button[data-restart],
+.finder-answers button[data-view-scent] {
+  width: auto;
+  min-width: 12rem;
+  margin-inline: auto;
+  border-color: transparent;
+  border-image: var(--iris-gradient) 1;
+  color: var(--iris-solid);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.finder-answers button[data-start]:hover,
+.finder-answers button[data-start]:focus-visible,
+.finder-answers button[data-start].is-pressed,
+.finder-answers button[data-restart]:hover,
+.finder-answers button[data-restart]:focus-visible,
+.finder-answers button[data-restart].is-pressed,
+.finder-answers button[data-view-scent]:hover,
+.finder-answers button[data-view-scent]:focus-visible,
+.finder-answers button[data-view-scent].is-pressed {
+  background: var(--iris-gradient);
+  color: #0e0e10;
+}
+
+.finder-answers {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.finder-answers button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: 1px solid rgba(242, 242, 242, 0.18);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.25s ease, color 0.25s ease, background-color 0.25s ease;
+}
+
+.finder-answers button:hover,
+.finder-answers button:focus-visible,
+.finder-answers button.is-pressed {
+  border-color: transparent;
+  border-image: var(--iris-gradient) 1;
+  background-image: var(--iris-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  outline: none;
+}
+
+/* ---- Left sidebar ---- */
+/* Ruled off from the view beside it with the same hairline the collection
+   panel is ruled off from the scent field with. Inside the 10.5rem the views
+   are laid out against (everything is border-box), so the line sits flush
+   against the left edge of whatever page is open. */
+#sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: var(--strip-height);
+  width: 10.5rem;
+  border-right: 1px solid rgba(242, 242, 242, 0.12);
+}
+
+/* The buttons themselves. A column on a wide screen; on a phone this is the
+   part that scrolls sideways (see the mobile section). */
+#nav-scroll {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+/* Folds the strip away on a phone; there is nothing to fold on a wide screen. */
+#nav-toggle {
+  display: none;
+}
+
+.nav-btn {
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  padding: 0.5rem;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Every button wears the same coloured horizontal ring, with its label layered
+   into the same grid cell so the title sits in the hole at the ring's centre. */
+.nav-art,
+.nav-label {
+  grid-area: 1 / 1;
+}
+
+.nav-art {
+  width: 9rem;
+  height: 2.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-shape {
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+  transition: transform 0.6s ease, opacity 0.3s ease;
+}
+
+.nav-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+.nav-btn:hover .nav-shape,
+.nav-btn:focus-visible .nav-shape,
+.nav-btn.is-pressed .nav-shape {
+  transform: scaleX(var(--flip)) rotate(calc(var(--rot) + 60deg)) scale(1.1);
+  opacity: 1;
+}
+
+.nav-btn:hover .nav-label,
+.nav-btn:focus-visible .nav-label,
+.nav-btn.is-pressed .nav-label {
+  opacity: 1;
+}
+
+.nav-btn:focus-visible {
+  outline: 1px solid var(--iris-solid);
+  outline-offset: 0.25rem;
+}
+
+/* The monogram shown in place of a button's own shape while its view is open,
+   added by main.js. Sized down from its usual 4.5rem so it doesn't dwarf the
+   shorter ring it replaces, and in gold rather than the silver every other
+   shape wears — the same warm accent the rendered monograms carry, so the mark
+   that says "you are here" is the one gold thing in the sidebar. */
+.nav-home-shape {
+  display: none;
+  background: var(--gold-gradient);
+  width: 3.2rem;
+  height: 3.2rem;
+  opacity: 0.75;
+  transition: transform 0.6s ease, opacity 0.3s ease;
+}
+
+.nav-btn.is-active .nav-art > *:not(.nav-home-shape) {
+  display: none;
+}
+
+.nav-btn.is-active .nav-home-shape {
+  display: block;
+}
+
+/* On a single scent's page the Scents button leads back to the field instead
+   of home, so it wears the field's own bloom in place of the monogram — the
+   coloured drawing, at the monogram's size, hung the same way. */
+.nav-back-shape {
+  display: none;
+  width: 3.2rem;
+  height: 3.2rem;
+  opacity: 0.75;
+  transition: transform 0.6s ease, opacity 0.3s ease;
+}
+
+.nav-btn.is-active.is-scent-detail .nav-home-shape {
+  display: none;
+}
+
+.nav-btn.is-active.is-scent-detail .nav-back-shape {
+  display: block;
+}
+
+/* Active: the label becomes "Home", sat over the monogram where it isn't
+   legible — keep it for screen readers, but off screen, so only the
+   monogram shows. */
+.nav-btn.is-active .nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.nav-btn:hover .nav-home-shape,
+.nav-btn:focus-visible .nav-home-shape,
+.nav-btn.is-pressed .nav-home-shape,
+.nav-btn:hover .nav-back-shape,
+.nav-btn:focus-visible .nav-back-shape,
+.nav-btn.is-pressed .nav-back-shape {
+  transform: scaleX(var(--flip)) rotate(calc(var(--rot) + 60deg));
+  opacity: 1;
+}
+
+/* ---- Bottom scrolling strip ---- */
+#marquee {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: var(--strip-height);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  /* The strip's backdrop is the woven ribbon (linijica), tiled edge-to-edge
+     across the whole width and slid sideways so the ribbon itself flows. A
+     single decoded image, repeated by the compositor and moved with
+     `background-position` — the strip "extends" and scrolls for free, with no
+     growing DOM or heap to leak, unlike stitching <img> tiles in JS. A dark
+     base shows through the ribbon's transparent gaps so the strip still reads
+     as a defined band.
+
+     One tile is exactly as wide as the strip is tall times the image's aspect
+     ratio (3508/121). Feeding that same width to both the background size and
+     the scroll distance keeps the loop seamless — and because it is derived
+     from --strip-height, it stays seamless when that height changes on mobile. */
+  --ribbon-w: calc(var(--strip-height) * 3508 / 121);
+  background-color: #0e0e10;
+  color: #f2ece0;
+  /* The ribbon behind the text is busy and multicoloured, so the light text
+     carries a tight dark halo plus a soft outer blur — legible over any part of
+     the ribbon, bright or dark. */
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 1),
+    0 1px 5px rgba(0, 0, 0, 1),
+    0 0 14px rgba(0, 0, 0, 0.85);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* The ribbon rides on a pseudo-element so its opacity is its own knob — the
+   strip's dark base and the text keep full strength while the ribbon sits at
+   85% (mostly visible, letting a little of the dark base soften it). Custom
+   properties set on #marquee, including --ribbon-duration from marquee.js,
+   inherit down here, so the JS speed sync needs no change. */
+#marquee::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('assets/linijica.png');
+  background-repeat: repeat-x;
+  background-position-y: center;
+  background-size: var(--ribbon-w) 100%;
+  opacity: 0.85;
+  animation: marquee-ribbon var(--ribbon-duration, 30s) linear infinite;
+  pointer-events: none;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  /* Above the ribbon pseudo-element, and nudged down so the letters sit
+     optically centred in the strip. */
+  position: relative;
+  z-index: 1;
+  top: 3px;
+  /* Slower than the old two-welcome strip: it now carries three welcomes and
+     three city clocks per group, so a longer cycle keeps the reading pace. */
+  animation: marquee-scroll 60s linear infinite;
+}
+
+.marquee-group {
+  display: flex;
+  gap: 2.5rem;
+  padding-right: 2.5rem;
+}
+
+/* Fixed-width digits so the ticking clocks don't nudge the strip as they change. */
+.marquee-city {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The track is two identical groups, so -50% lands exactly on a repeat. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Slide the ribbon backdrop by exactly one tile, so the woven line flows past
+   without ever showing a seam. */
+@keyframes marquee-ribbon {
+  from { background-position-x: 0; }
+  to   { background-position-x: calc(-1 * var(--ribbon-w)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  #marquee::before { animation: none; }
+  /* home.js already skips the glitch here — the panes just cross over. */
+  .home-manifesto-screen.is-glitching .home-manifesto-pane,
+  .home-manifesto-screen.is-glitching::after { animation: none; }
+  .scent-bloom.is-swinging,
+  .scent-bloom:focus-visible,
+  .scent-bloom.is-pressed {
+    animation: none;
+  }
+}
+
+/* ---- Phone ----------------------------------------------------------------
+   One breakpoint, shared with mobile.js (MOBILE_QUERY) — keep the two in step.
+
+   The furniture turns over: the strip runs along the top, the sidebar becomes a
+   strip along the bottom that scrolls sideways and folds away, and the pages
+   that have more to say than a phone can hold scroll inside themselves. The
+   page itself never scrolls, so the browser's own chrome stays put. */
+@media (max-width: 768px) {
+  :root {
+    --strip-height: 2.25rem;
+    /* The bottom strip: the full thing, and the grab handle left behind when it
+       is folded down. */
+    --nav-height: 6.75rem;
+    --nav-handle: 1.75rem;
+    /* How much room the strip takes from the views — the whole strip, or just
+       the handle once it is folded away. */
+    --nav-space: var(--nav-height);
+  }
+
+  #site.nav-collapsed {
+    --nav-space: var(--nav-handle);
+  }
+
+  /* A phone's chrome eats into a fixed inset:0 box; the dynamic viewport unit
+     tracks it, so the bottom strip is never left under the browser's own bar. */
+  @supports (height: 100dvh) {
+    #intro,
+    #site {
+      height: 100dvh;
+    }
+  }
+
+  /* Nothing to move toward on a touch screen: the intro plays itself. */
+  #hint {
+    display: none;
+  }
+
+  /* ---- Strip on top, sidebar along the bottom ---- */
+  #marquee {
+    top: 0;
+    bottom: auto;
+    height: var(--strip-height);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+  }
+
+  #sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--nav-height);
+    background: #0e0e10;
+    /* A strip along the bottom now, not a column beside the page: the handle's
+       own top border is the line between it and the view. */
+    border-right: 0;
+    transition: transform 0.3s ease;
+  }
+
+  /* Folded away: everything but the handle slides off the bottom. */
+  #site.nav-collapsed #sidebar {
+    transform: translateY(calc(var(--nav-height) - var(--nav-handle)));
+  }
+
+  #nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: var(--nav-handle);
+    background: #0e0e10;
+    border: 0;
+    border-top: 1px solid rgba(242, 242, 242, 0.12);
+    color: inherit;
+    cursor: pointer;
+  }
+
+  /* A chevron, pointing down to fold the strip away and up to bring it back. */
+  #nav-toggle::after {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-top: -0.25rem;
+    border-right: 1px solid var(--iris-solid);
+    border-bottom: 1px solid var(--iris-solid);
+    transform: rotate(45deg);
+    transition: transform 0.3s ease;
+  }
+
+  #site.nav-collapsed #nav-toggle::after {
+    margin-top: 0.25rem;
+    transform: rotate(-135deg);
+  }
+
+  /* Two buttons fit; the rest are a swipe to the right. */
+  #nav-scroll {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    height: calc(var(--nav-height) - var(--nav-handle));
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+  }
+
+  .nav-btn {
+    flex: 0 0 50%;
+    scroll-snap-align: center;
+    gap: 0.3rem;
+    padding: 0.25rem;
+  }
+
+  .nav-art {
+    width: 6.5rem;
+    height: 2rem;
+  }
+
+  .nav-home-shape,
+  .nav-back-shape {
+    width: 2.3rem;
+    height: 2.3rem;
+  }
+
+  .nav-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+  }
+
+  /* ---- Views ---- */
+  .view {
+    left: 0;
+    top: var(--strip-height);
+    bottom: var(--nav-space);
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  /* ---- Home: news, the film, the featured scent, then the mark ---- */
+  #home {
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
+    padding: 1.75rem 1.25rem 2.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The column scrolls rather than fits, so nothing in it is squeezed to make
+     room — a shrunk block would let its contents spill over what follows. */
+  #home > * {
+    flex: none;
+    min-height: auto;
+  }
+
+  #home-news {
+    order: 1;
+    width: 100%;
+  }
+
+  /* Full width here, and landscape rather than square: a square screen this
+     wide would eat most of the phone on its own, and the statement has room to
+     spread out at this width anyway. */
+  #home-manifesto {
+    order: 2;
+    width: 100%;
+  }
+
+  .home-manifesto-screen {
+    aspect-ratio: 4 / 3;
+  }
+
+  #home-video {
+    order: 3;
+    align-self: stretch;
+    width: 100%;
+  }
+
+  .home-video-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-video-frame video {
+    max-height: none;
+  }
+
+  /* Still the two of them together, a step apart — just full width and read
+     left to right like everything else here. */
+  #home-aside {
+    order: 4;
+    width: 100%;
+    gap: 1.75rem;
+  }
+
+  /* Read left to right like everything else on the page here. */
+  .home-featured-card {
+    width: 100%;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .home-featured-photo {
+    height: 12rem;
+  }
+
+  /* Read left to right here too, and take the full width like the card. */
+  #home-discovery {
+    width: 100%;
+    text-align: left;
+  }
+
+  .home-discovery-photo {
+    height: 12rem;
+  }
+
+  /* Back into the column's own flow: the desktop rule lifts it out to the foot
+     of the window, which here would leave it sitting over the nav. */
+  #home-est {
+    position: static;
+    order: 5;
+    align-self: center;
+    margin-top: auto;
+    padding-top: 1rem;
+  }
+
+  /* ---- Scents: title, then the field, then the photo and text — one column;
+     the field itself still never scrolls, so the blooms are sized to fit it ---- */
+  #scent-overview {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "title"
+      "field"
+      "info";
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #scent-field {
+    width: 100%;
+    height: 60vh;
+    min-height: 20rem;
+  }
+
+  #scent-collection-title {
+    padding: 1.75rem 1.25rem 0;
+    border-left: 0;
+    border-top: 1px solid rgba(242, 242, 242, 0.12);
+  }
+
+  #scent-collection-info {
+    width: 100%;
+    height: auto;
+    border-left: 0;
+    padding: 1.25rem 1.25rem 2.5rem;
+  }
+
+  .scent-name {
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+  }
+
+  /* ---- A single scent: one column, and the whole of it scrolls ---- */
+  #scent-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    padding: 1.5rem 1.25rem 2.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The two columns stop being boxes, so their contents can be interleaved into
+     the one order this page reads in on a phone. */
+  .scent-detail-col {
+    display: contents;
+  }
+
+  /* Same as the home column: this one scrolls, so nothing in it is squeezed. */
+  .scent-detail-col > * {
+    flex: none;
+    min-height: auto;
+  }
+
+  .scent-detail-name { order: 2; font-size: 1.75rem; }
+  .scent-detail-tagline { order: 3; margin-bottom: 1.5rem; }
+  .scent-detail-photo { order: 4; height: 14rem; }
+  .scent-detail-notes { order: 5; }
+  .scent-detail-story { order: 6; }
+  .scent-inquire { order: 7; }
+
+  /* The page scrolls now, so nothing inside it needs to. */
+  .scent-detail-story,
+  .scent-detail-notes {
+    overflow: visible;
+  }
+
+  .scent-detail-notes {
+    margin-bottom: 1.5rem;
+  }
+
+  .scent-inquire {
+    margin-top: 1.75rem;
+  }
+
+  /* ---- Atelier: the photograph is wider than the screen and slides ---- */
+  .view[data-view="atelier"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+  }
+
+  /* Full height, and as wide as the photograph's own proportions make it
+     (atelier.js measures each one and sets --atelier-aspect). */
+  #atelier-backdrop {
+    position: relative;
+    inset: auto;
+    flex: none;
+    width: auto;
+    height: 100%;
+    min-width: 100%;
+    aspect-ratio: var(--atelier-aspect, 1.5);
+  }
+
+  /* The gradient assumed the text was always on the left; here the photograph
+     moves under it, so the whole thing is dimmed evenly instead. */
+  #atelier-backdrop::after {
+    background: rgba(14, 14, 16, 0.55);
+  }
+
+  /* Fixed, so sliding the photograph leaves the words where they were. */
+  #atelier-text {
+    position: fixed;
+    left: 1.25rem;
+    right: 1.25rem;
+    bottom: calc(var(--nav-space) + 1.5rem);
+    width: auto;
+    margin: 0;
+    padding: 1.25rem;
+    background: rgba(14, 14, 16, 0.8);
+    /* Anchored to the bottom, so without a ceiling a long text grows up and
+       off the top of the screen with no way to reach it. The room it may take
+       is what is left between the strip along the top and the nav along the
+       bottom; on a short phone it scrolls inside its own box instead. (A
+       percentage, not a viewport unit: on a fixed box it resolves against the
+       viewport anyway, and needs no @supports guard the way dvh does.) */
+    max-height: calc(100% - var(--strip-height) - var(--nav-space) - 3rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #atelier-text h2 {
+    font-size: 1.6rem;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ---- Contact: where to find us, then the form under it ---- */
+  #contact-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+    width: 100%;
+    max-height: 100%;
+    padding: 1.75rem 1.25rem 2.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Rows keep their own height and the panel scrolls past them; left to
+       stretch, a panel too short for its contents squeezes the links into the
+       form instead. */
+    align-content: start;
+  }
+
+  .contact-col {
+    min-height: auto;
+  }
+
+  /* The panel is the thing that scrolls. */
+  #contact-form .inquiry-form {
+    overflow: visible;
+  }
+
+  /* ---- Scent finder: as it is on a wide screen, a size down ---- */
+  .view[data-view="finder"] {
+    align-items: center;
+    /* Held in the middle, but never with its top cut off: a phone laid on its
+       side has less height than five answers need, and then it scrolls. */
+    align-items: safe center;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #finder-panel {
+    width: min(34rem, 86%);
+    padding-block: 1.5rem;
+  }
+
+  .finder-question {
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* No room to put the actions beside the photograph on a phone, so the result
+     screen goes back to a stack. The column keeps its width: max-content, so
+     the two buttons still match each other. */
+  .finder-result-row {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .inquiry-form {
+    padding: 1.75rem 1.25rem;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}

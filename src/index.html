@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aleks Parfumy</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <!-- three.js r160, vendored into assets/vendor (see tools/vendor-three.py), so
+       the site has no external dependencies at runtime. Paths are relative, so
+       this works wherever the site is mounted. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./assets/vendor/three/three.module.js",
+      "three/addons/": "./assets/vendor/three/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 3D intro overlay: click to dismiss -->
+  <div id="intro" title="Click to enter">
+    <div id="loading">Loading…</div>
+    <canvas id="scene"></canvas>
+
+    <div id="hint">Move towards the monogram — then click to unlock</div>
+  </div>
+
+  <!-- The actual site, revealed after the click -->
+  <main id="site" hidden>
+    <!-- Left sidebar. Each button wears the same ring artefact laid on its
+         side, in the iridescent colours it was drawn in, with the page title
+         sitting in the hole at its centre. -->
+    <nav id="sidebar" aria-label="Main">
+      <!-- Only ever seen on a phone, where the sidebar is a strip along the
+           bottom that can be folded away. -->
+      <button id="nav-toggle" type="button" aria-controls="nav-scroll"
+              aria-expanded="true" aria-label="Hide the menu"></button>
+
+      <div id="nav-scroll">
+        <button class="nav-btn" type="button" data-view="scents">
+          <span class="nav-art" aria-hidden="true">
+            <span class="shape nav-shape shape--ring-horizontal"></span>
+          </span>
+          <span class="nav-label">Scents</span>
+        </button>
+        <button class="nav-btn" type="button" data-view="atelier">
+          <span class="nav-art" aria-hidden="true">
+            <span class="shape nav-shape shape--ring-horizontal"></span>
+          </span>
+          <span class="nav-label">Atelier</span>
+        </button>
+        <button class="nav-btn" type="button" data-view="finder">
+          <span class="nav-art" aria-hidden="true">
+            <span class="shape nav-shape shape--ring-horizontal"></span>
+          </span>
+          <span class="nav-label">Scent finder</span>
+        </button>
+        <button class="nav-btn" type="button" data-view="contact">
+          <span class="nav-art" aria-hidden="true">
+            <span class="shape nav-shape shape--ring-horizontal"></span>
+          </span>
+          <span class="nav-label">Contact</span>
+        </button>
+      </div>
+    </nav>
+
+    <section class="view" data-view="home">
+      <div id="home">
+        <div id="home-news"></div>
+
+        <!-- A second screen in the same bezel as the film, between the news and
+             the featured scent. It holds two pictures in turn — the monogram in
+             gold (the real 3D artwork, as on the contact page), then what the
+             house is — and swaps them behind a burst of
+             glitch, the way a sign with a bad signal changes over.
+             home.js runs the cycle. -->
+        <div id="home-manifesto">
+          <div class="screen-bezel">
+            <div class="home-manifesto-screen screen-glass">
+              <span class="home-manifesto-pane is-on" aria-hidden="true">
+                <canvas class="home-manifesto-logo" id="home-logo-canvas"></canvas>
+              </span>
+              <p class="home-manifesto-pane home-manifesto-text">Based in Prague,
+                Aleks Parfumy is an olfactive atelier turned independent artisanal
+                perfume house by Columby-Micić. Blending nature, memory, urban
+                life, and raw emotion into daring fragrances crafted in-house to
+                transform moods, identities, and realities.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="home-video">
+          <p class="home-eyebrow">Video essay</p>
+          <h2 class="home-video-title">Smelling Each Other&rsquo;s Insides</h2>
+          <div class="home-video-body">
+            <div class="home-video-frame screen-bezel">
+              <!-- the film runs 7½ minutes and has sound, so it waits to be played
+                   rather than autoplaying muted on a loop -->
+              <video class="screen-glass" src="assets/home-video.mp4"
+                     poster="assets/home-video-poster.jpg"
+                     controls playsinline preload="metadata"></video>
+            </div>
+            <p class="home-video-caption">
+              Writing an elegy for his half-Chinese canine friends from childhood,
+              Columby-Micić explores how love, death and dogs intersect with scent
+              in a moving autobiographical video-essay written and filmed for
+              Shoebox Magazine.
+            </p>
+          </div>
+        </div>
+
+        <!-- The right-hand column, held together so the two stay one small
+             step apart however tall the rest of the page is: the featured
+             scent (filled in by home.js), and directly under it the one thing
+             on the page that is a product rather than a story — not a link,
+             there is no page behind it yet. -->
+        <div id="home-aside">
+          <div id="home-featured"></div>
+
+          <figure id="home-discovery">
+            <img class="home-discovery-photo" src="assets/discovery-set.jpg" alt="">
+            <figcaption>
+              <span class="home-eyebrow">Discovery set</span>
+              <span class="home-discovery-line">All seven fragrances presented in
+                the first ever AP discovery set.</span>
+              <span class="home-discovery-line">In the spirit of the Aleks Parfumy
+                Sniffing Sessions, each composition is left unexplained on purpose,
+                so it can be approached without filter: without expectation,
+                judgment, or interpretation.</span>
+              <span class="home-discovery-line">This set is an invitation to
+                experience AP firsthand, as you would in the atelier.</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <p id="home-est">est. Prague 2019</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="scents" hidden>
+      <!-- The field (blooms, scattered at runtime by scents.js), the
+           collection title and the panel beside it (also filled in by
+           scents.js), shown together; a single scent's own page replaces
+           all three when opened. -->
+      <div id="scent-overview">
+        <div id="scent-collection-title"></div>
+        <div id="scent-field"></div>
+        <aside id="scent-collection-info"></aside>
+      </div>
+      <div id="scent-detail" hidden></div>
+    </section>
+
+    <section class="view" data-view="atelier" hidden>
+      <!-- photograph chosen at random by atelier.js each time this opens -->
+      <div id="atelier-backdrop" aria-hidden="true"></div>
+      <div id="atelier-text">
+        <h2>The atelier</h2>
+        <!-- Four beats, each its own paragraph: what an atelier is, who works
+             in this one, what it is to him, and what is actually done here. -->
+        <p>The Atelier is in the traditional sense the artist&rsquo;s abode. A
+           place of experiment and creation, where intention meets instinct.</p>
+        <p>The founder, creative director and perfumer of the atelier is Hadži
+           Aleksandar Columby-Micić (also known as Aleksandar Columby), while its
+           muses are many. Drawing inspiration from raw materials, natural and
+           urban scentscapes, family history and close friends. At Aleks
+           Parfumy, we believe that with great care, meticulous attention to
+           detail and refined craftsmanship, anything can be transformed into a
+           fragrance.</p>
+        <p>The AP Atelier is a spacetime in which inspirations and ideas spring
+           up, fly, melt and transmute into creations that live unbound. For
+           Columby-Micić the Atelier transcends the spatial dimension, and
+           operates as a consciousness of its own, requiring interpretation by
+           the perfumer who allows it to weave its fragrant threads into the
+           hearts of our customers.</p>
+        <p>It is here where the whole process of creation and production takes
+           place, from drawing concepts and running tests, to creative
+           composition, bottling and finally packaging. All AP fragrances are
+           hand-crafted in Prague by Columby-Micić himself.</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="contact" hidden>
+      <div id="contact-panel">
+        <div class="contact-col">
+          <h2 class="contact-title">Socials</h2>
+          <ul id="contact-links"></ul>
+          <h2 class="contact-title">Email</h2>
+          <ul id="contact-email"></ul>
+          <div class="contact-logo" aria-hidden="true">
+            <canvas id="contact-logo-canvas"></canvas>
+          </div>
+        </div>
+        <div class="contact-col" id="contact-form"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="finder" hidden>
+      <!-- shapes from the intro, played between questions -->
+      <canvas id="finder-fx" aria-hidden="true"></canvas>
+      <div id="finder-panel" aria-live="polite"></div>
+    </section>
+
+    <!-- Scrolling strip along the bottom. The track holds two identical
+         groups; sliding it by -50% loops seamlessly. marquee.js builds the
+         real content (the welcome line alternating with each city's local
+         time and temperature); the single group below is the no-JS fallback. -->
+    <div id="marquee">
+      <div class="marquee-track">
+        <span class="marquee-group">
+          <span>Welcome to the Aleks Parfumy website and experience</span>
+          <span class="marquee-sep" aria-hidden="true">✦</span>
+        </span>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
