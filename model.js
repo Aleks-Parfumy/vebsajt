@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // The 3D artwork, shared by the intro and by anything else that wants to reuse
-// its pieces. The file is ~14MB, so it is parsed once and handed out after.
+// its pieces. The file is a few megabytes, so it is parsed once and handed out
+// after.
 
 const MODEL_URL = 'assets/AP-site-3D_kosta.glb';
 

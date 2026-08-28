@@ -103,8 +103,23 @@ const hintEl = document.getElementById('hint');
 const site = document.getElementById('site');
 
 // ---- Renderer / scene / camera ---------------------------------------------
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// A phone pays for every pixel several times over: the scene is drawn into a
+// multisampled half-float buffer, and the bloom then blurs it through five
+// mip levels. Past about 1.5 the extra sharpness is invisible at arm's length
+// on a phone screen while the fill cost very much is not.
+const MAX_PIXEL_RATIO = isMobile() ? 1.5 : 2;
+
+// `antialias` is deliberately off: it multisamples the canvas's own buffer,
+// which the composer never draws the scene into — the scene goes to
+// composerTarget below, which asks for its own multisampling, and all the
+// canvas ever receives is a flat blit of the finished image. Asking for it
+// here only allocated a second multisampled buffer nothing ever read.
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: false,
+  powerPreference: 'high-performance',
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new THREE.Scene();
@@ -140,7 +155,7 @@ frameCamera();
 // is asked for multisampling of its own to put that right; the pixel format is
 // the half-float the composer would have picked for itself, kept so the bloom
 // still has headroom above white to work with.
-const MSAA_SAMPLES = 4;
+const MSAA_SAMPLES = isMobile() ? 2 : 4;
 const composerTarget = new THREE.WebGLRenderTarget(1, 1, {
   type: THREE.HalfFloatType,
   samples: MSAA_SAMPLES,
@@ -629,11 +644,20 @@ initMarquee(document.getElementById('marquee'));
 initPressDelay();
 
 // ---- Resize ----------------------------------------------------------------
+// Every one of these reallocates the composer's buffer and the bloom's five
+// pairs of mips, which is far too much to do per event: a desktop drag and a
+// phone's own address bar sliding away both fire resize in a stream. Settle
+// first, then resize once.
+let sceneResizeTimer = null;
 window.addEventListener('resize', () => {
   if (done) return; // the intro's renderer/composer are disposed once it's gone
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  frameCamera();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
+  clearTimeout(sceneResizeTimer);
+  sceneResizeTimer = setTimeout(() => {
+    if (done) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    frameCamera();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+  }, 120);
 });
