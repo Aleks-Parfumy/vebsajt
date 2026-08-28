@@ -245,13 +245,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---- Views ---- */
-/* Everything sits right of the sidebar and above the strip. */
+/* Everything sits right of the sidebar, and runs the full height of the
+   window — the strip rides on top of the foot of the page rather than
+   claiming a reserved band beneath it, so its ribbon is genuinely over the
+   content instead of over a dark gap of its own. */
 .view {
   position: absolute;
   left: 10.5rem;
   right: 0;
   top: 0;
-  bottom: var(--strip-height);
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -262,8 +265,11 @@ h1, h2, h3, h4, h5, h6 {
    the middle, and on the right the featured scent with the discovery set right
    under it. The middle and right columns both span the two upper rows and sit
    at the top of that span, so their own heights never push the film down; the
-   second row takes the slack. Where this started signs off the page from
-   outside the grid entirely — see #home-est. */
+   second row takes the slack. Where this started signs off the page in its own
+   row at the foot of the grid, spanning all three columns — see #home-est.
+   Scrolls internally rather than clipping when a short window can't fit
+   everything; no bottom padding to speak of, so scrolled all the way down,
+   content runs right up under the strip rather than stopping short of it. */
 #home {
   position: absolute;
   inset: 0;
@@ -271,7 +277,8 @@ h1, h2, h3, h4, h5, h6 {
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-rows: auto 1fr auto;
   gap: 2rem 2.5rem;
-  padding: 3rem;
+  padding: 3rem 3rem 0.5rem;
+  overflow-y: auto;
 }
 
 .home-eyebrow {
@@ -287,7 +294,21 @@ h1, h2, h3, h4, h5, h6 {
   grid-column: 1;
   grid-row: 1;
   align-self: start;
-  width: min(28rem, 100%);
+  width: min(42rem, 100%);
+  display: flex;
+  align-items: flex-start;
+  gap: 1.75rem;
+}
+
+.home-news-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-news-photo {
+  width: 14rem;
+  height: auto;
+  flex: none;
 }
 
 .home-news-date {
@@ -479,7 +500,7 @@ h1, h2, h3, h4, h5, h6 {
   grid-column: 2;
   grid-row: 1 / 3;
   align-self: start;
-  width: clamp(17rem, 20vw, 20rem);
+  width: clamp(14rem, 16vw, 16rem);
 }
 
 /* Both pictures are stacked in the one box and only differ in opacity, so the
@@ -630,17 +651,13 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 0.75rem;
 }
 
-/* Centred on the window rather than on the view: the sidebar is part of the
-   page this signs off, so the middle it sits under is the middle of all of it,
-   not of what is left beside the sidebar. Dropped to just clear of the strip
-   along the bottom, and fixed rather than placed in the grid — the right-hand
-   column above scrolls now, and anything sharing the foot of the grid with it
-   would be sat on when it overran. */
+/* The grid's own foot row, spanning every column, so it scrolls with the rest
+   of the page rather than sitting fixed over it — a fixed mark stayed put
+   while the content beneath it scrolled, which let the two overlap. */
 #home-est {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(var(--strip-height) + 0.75rem);
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin-top: 1rem;
   text-align: center;
   font-size: 0.7rem;
   letter-spacing: 0.25em;
@@ -1426,7 +1443,7 @@ h1, h2, h3, h4, h5, h6 {
     display: block;
     position: absolute;
     top: 50%;
-    width: clamp(5rem, 8vw, 8.5rem);
+    width: clamp(8rem, 13vw, 14rem);
     aspect-ratio: 329 / 420; /* the sprite's own proportions */
     opacity: 0.5;
     pointer-events: none;
@@ -1761,20 +1778,24 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
   display: flex;
   align-items: center;
+  /* Floats over the foot of whatever view is open (see .view) rather than a
+     band reserved beneath it, and ignores the pointer so it never steals a
+     click or hover meant for the content now sitting under it. */
+  z-index: 2;
+  pointer-events: none;
   /* The strip's backdrop is the woven ribbon (linijica), tiled edge-to-edge
      across the whole width and slid sideways so the ribbon itself flows. A
      single decoded image, repeated by the compositor and moved with
      `background-position` — the strip "extends" and scrolls for free, with no
-     growing DOM or heap to leak, unlike stitching <img> tiles in JS. A dark
-     base shows through the ribbon's transparent gaps so the strip still reads
-     as a defined band.
+     growing DOM or heap to leak, unlike stitching <img> tiles in JS. Genuinely
+     transparent where the ribbon itself is: the page shows through its gaps
+     rather than a solid backing.
 
      One tile is exactly as wide as the strip is tall times the image's aspect
      ratio (3508/121). Feeding that same width to both the background size and
      the scroll distance keeps the loop seamless — and because it is derived
      from --strip-height, it stays seamless when that height changes on mobile. */
   --ribbon-w: calc(var(--strip-height) * 3508 / 121);
-  background-color: #0e0e10;
   color: #f2ece0;
   /* The ribbon behind the text is busy and multicoloured, so the light text
      carries a tight dark halo plus a soft outer blur — legible over any part of
@@ -1989,6 +2010,11 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   /* ---- Views ---- */
+  /* Unlike the desktop rule, the top strip here still gets a reserved band:
+     it sits along the very top edge, so letting content run under it would
+     bury the first thing on the page from the moment it opens rather than
+     only once scrolled — the bottom strip, on desktop, only ever covers
+     content once it's been scrolled down to. */
   .view {
     left: 0;
     top: var(--strip-height);
@@ -2017,6 +2043,12 @@ h1, h2, h3, h4, h5, h6 {
   #home-news {
     order: 1;
     width: 100%;
+    flex-direction: column-reverse;
+  }
+
+  .home-news-photo {
+    width: 100%;
+    height: auto;
   }
 
   /* Full width here, and landscape rather than square: a square screen this

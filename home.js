@@ -116,9 +116,12 @@ const NEWS = [
   {
     eyebrow: 'News',
     date: '28 August',
-    title: 'Exhibition in Belgrade',
-    body: 'Placeholder — a line about the exhibition: the space, who is showing, '
-      + 'and what will be open to smell on the night.',
+    title: 'Invisible Placemakers',
+    body: 'Galerija Čubra, Patrijarha Varnave, 29–30 August, 12–20h. The '
+      + 'exhibition explores scent as an invisible architectural material that '
+      + 'occupies space, follows movement through the city, attaches itself to '
+      + 'memory, and participates in shaping what we experience as home.',
+    photo: 'assets/exhibition.jpg',
   },
 ];
 
@@ -132,10 +135,13 @@ export function initHome(root, { onOpenScent } = {}) {
 
   const [item] = NEWS;
   newsEl.innerHTML = `
-    <p class="home-eyebrow">${item.eyebrow}</p>
-    <p class="home-news-date">${item.date}</p>
-    <h2 class="home-news-title">${item.title}</h2>
-    <p class="home-news-body">${item.body}</p>`;
+    <div class="home-news-text">
+      <p class="home-eyebrow">${item.eyebrow}</p>
+      <p class="home-news-date">${item.date}</p>
+      <h2 class="home-news-title">${item.title}</h2>
+      <p class="home-news-body">${item.body}</p>
+    </div>
+    ${item.photo ? `<img class="home-news-photo" src="${item.photo}" alt="">` : ''}`;
 
   const featured = SCENTS.find((scent) => scent.id === FEATURED_ID);
   if (featured) {
