@@ -167,10 +167,6 @@ const STRING_MIN = 0.55;
 // notes are written in.
 const NOTE_ROWS = ['Top', 'Middle', 'Base'];
 
-function randomBetween(min, max) {
-  return min + Math.random() * (max - min);
-}
-
 /** A fresh 0..n-1 in random order (Fisher–Yates), used to shuffle the blooms. */
 function shuffledIndices(n) {
   const order = Array.from({ length: n }, (_, i) => i);
@@ -243,9 +239,31 @@ export function initScents(root, { onDetailChange } = {}) {
     });
   }
 
-  function place() {
+  // What the field last rolled: which column each bloom took, how far down it
+  // hung (as a fraction of the reach available, so it survives a change of
+  // height), and how its shape was turned. Held between lay-outs because a
+  // re-fit is not a re-roll — folding the phone's bottom strip away resizes the
+  // field, and the arrangement should ride that out rather than be thrown again.
+  let arrangement = null;
+
+  function roll() {
+    arrangement = {
+      order: shuffledIndices(groups.length),
+      drops: groups.map(() => Math.random()),
+      rots: groups.map(() => Math.round(Math.random() * 360)),
+    };
+  }
+
+  /**
+   * Lays the blooms out for the field's current size. Rolls a fresh arrangement
+   * when asked (opening the view), otherwise re-fits the one already on screen.
+   */
+  function place({ reroll = false } = {}) {
     const { width, height } = field.getBoundingClientRect();
     if (!width || !height) return; // hidden view: nothing to measure yet
+
+    if (reroll || !arrangement) roll();
+    const { order, drops, rots } = arrangement;
 
     const n = groups.length;
     const colWidth = width / n;
@@ -266,7 +284,6 @@ export function initScents(root, { onDetailChange } = {}) {
     // The height is the whole reach — string and shape together — so the bounds
     // are what keep the shape off the top edge at one end and its name off the
     // bottom at the other.
-    const order = shuffledIndices(n);
     const minHeight = size * (1 + STRING_MIN);
     const maxHeight = Math.max(minHeight, height - LABEL_SPACE - BOTTOM_AIR);
 
@@ -280,12 +297,13 @@ export function initScents(root, { onDetailChange } = {}) {
       // pivots) down to where the shape hangs — a random height per bloom.
       // --size goes on the bloom, not the shape, so the string (the shape's
       // sibling) can read it too, to know where the shape's centre is.
-      bloom.style.height = `${randomBetween(minHeight, maxHeight)}px`;
+      bloom.style.height =
+        `${minHeight + drops[i] * (maxHeight - minHeight)}px`;
       bloom.style.setProperty('--size', `${size}px`);
       // --rot goes on the shape itself: .shape declares its own --rot, which
       // would shadow anything inherited from an ancestor.
       group.querySelector('.scent-shape')
-        .style.setProperty('--rot', `${Math.round(Math.random() * 360)}deg`);
+        .style.setProperty('--rot', `${rots[i]}deg`);
     });
   }
 
@@ -327,7 +345,7 @@ export function initScents(root, { onDetailChange } = {}) {
   function showField() {
     detail.hidden = true;
     overview.hidden = false;
-    place();
+    place({ reroll: true });
     onDetailChange?.(false);
   }
 
@@ -358,8 +376,9 @@ export function initScents(root, { onDetailChange } = {}) {
   window.addEventListener('resize', () => {
     if (root.hidden || overview.hidden) return;
     clearTimeout(resizeTimer);
-    // Re-lay-out after a resize, so the even columns and sizes fit the new width.
-    resizeTimer = setTimeout(place, 150);
+    // Re-fit after a resize, so the even columns and sizes suit the new width —
+    // the arrangement itself is kept, not thrown again.
+    resizeTimer = setTimeout(() => place(), 150);
   });
 
   return {
