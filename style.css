@@ -2110,9 +2110,17 @@ h1, h2, h3, h4, h5, h6 {
     border-top: 1px solid rgba(242, 242, 242, 0.12);
   }
 
+  /* The panel is a scroller on desktop, where it has a column to itself. Here
+     it must not be: a scroll container's automatic minimum size is zero, so its
+     row collapsed to whatever the field left over and the copy was read through
+     a sliver. Let the row take its content height and #scent-overview do the
+     scrolling for the whole column instead. */
   #scent-collection-info {
     width: 100%;
     height: auto;
+    min-height: auto;
+    overflow-y: visible;
+    justify-content: flex-start;
     border-left: 0;
     padding: 1.25rem 1.25rem 2.5rem;
   }
