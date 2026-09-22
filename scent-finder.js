@@ -47,13 +47,13 @@ const QUESTIONS = [
   {
     question: 'If you were an animal, you would most probably be...',
     answers: [
-      { text: 'River snake', scents: [S.KORENATAC_EDT] },
-      { text: 'Dormouse', scents: [S.KORENATAC_EDC] },
-      { text: 'Tiger', scents: [S.RADNASKELA_EDT] },
-      { text: 'Cat', scents: [S.RADNASKELA_EDC] },
-      { text: 'Monkey', scents: [S.PAZAFAUN] },
-      { text: 'Sheep', scents: [S.VUNAMAYA] },
-      { text: 'Octopus', scents: [S.SHAFRANIYA] },
+      { text: 'A river snake', scents: [S.KORENATAC_EDT] },
+      { text: 'A doormouse', scents: [S.KORENATAC_EDC] },
+      { text: 'A tiger', scents: [S.RADNASKELA_EDT] },
+      { text: 'A cat', scents: [S.RADNASKELA_EDC] },
+      { text: 'A monkey', scents: [S.PAZAFAUN] },
+      { text: 'A sheep', scents: [S.VUNAMAYA] },
+      { text: 'An octopus', scents: [S.SHAFRANIYA] },
     ],
   },
   {
@@ -368,7 +368,7 @@ export function initScentFinder(root, { onOpenScent } = {}) {
     const alternateLine = alternate ? `
       <p class="finder-alt">
         However, you may also be drawn to
-        <button class="finder-alt-link" type="button" data-view-scent="${alternate.id}">${alternate.name}</button>.
+        <a class="finder-alt-link" href="#scent-${alternate.id}">${alternate.name}</a>.
       </p>` : '';
     panel.innerHTML = `
       <p class="finder-step">Your result</p>

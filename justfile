@@ -19,7 +19,7 @@ artwork src="wetransfer_ap-materijali-za-www_2026-08-13_1949/RING_AP_ARTEFAKT_.p
     @tools/bake-artwork.sh {{src}} {{out}}
 
 # Turn the ring drawing into the coloured sprite the sidebar wears
-ring src="ring_AP-duga.png" out="shape-ring-colour-horizontal.png":
+ring src="assets/RING_OVAJJJJJ_DUGAAA.png" out="shape-ring-colour-horizontal.png":
     @tools/colour-artwork.sh {{src}} {{out}} 300
 
 # Turn the bloom drawing into the coloured sprite the scents page hangs

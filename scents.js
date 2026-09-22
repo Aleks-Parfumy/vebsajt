@@ -89,6 +89,7 @@ export const SCENTS = [
       'The eau de cologne version of the AP classic Radnaskela accentuates at once the fragrance’s sparkling top notes and its warming and animalic qualities.',
       'The tension of opposites attracting each other and pushing each other away makes for a chic equilibrium of rawness and elegance. This is not an ordinary fougère by any means. While Radnaskela clearly offers a nod to the French greats of the past two centuries, it also brings forth a characteristic middle-eastern sillage that will make you unforgettable wherever you tread, East or West.',
       'Due to the scent’s lower concentration compared to the eau de toilette, its staying power is softer, but the overall effect is that much more demure and chic.',
+      'The EDCs were originally created for Columby-Micić’s private use, but seeing interest in lighter concentrations and knowing how well these formulas perform in this format, I decided to include them in the Prague Atelier Series.',
     ],
     notes: [
       ['italian bergamot', 'iranian lime', 'lavender absolute'],
@@ -153,8 +154,10 @@ const SIZE_MAX_PX = 150;
 const COLUMN_FILL = 0.82;
 
 // Room under a bloom for its name, in px, plus a little air under that so the
-// lowest name never sits flush against the bottom of the field.
-const LABEL_SPACE = 30;
+// lowest name never sits flush against the bottom of the field. Sized for a
+// name wrapped to two lines (see .scent-name), which is the most the longest
+// names take in the narrowest columns.
+const LABEL_SPACE = 42;
 const BOTTOM_AIR = 14;
 
 // The shortest string worth drawing, as a fraction of the shape's own size: any
@@ -291,6 +294,9 @@ export function initScents(root, { onDetailChange } = {}) {
       // Evenly spaced column centres; `order` shuffles which bloom lands where.
       const x = colWidth * (order[i] + 0.5);
       group.style.left = `${(x / width) * 100}%`;
+      // The name is allowed to wrap (see .scent-name), so it is held to its
+      // own column — no running into a neighbour and no spilling off the edge.
+      group.style.setProperty('--col', `${colWidth}px`);
 
       const bloom = group.querySelector('.scent-bloom');
       // The bloom reaches from the top of the field (its own top edge, where it
@@ -360,7 +366,7 @@ export function initScents(root, { onDetailChange } = {}) {
   // open (see main.js), and Escape below — the page itself carries no mark.
   detail.addEventListener('click', (event) => {
     if (event.target.closest('.scent-inquire') && openScent) {
-      inquiry.open(openScent.name);
+      inquiry.open(openScent.name, openScent.name);
     }
   });
 

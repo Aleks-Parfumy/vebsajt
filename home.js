@@ -1,8 +1,9 @@
-// The home page: a news item, the glitching screen beside it, the featured
-// scent, the film, and the mark of where this started.
+// The home page: the film, the glitching screen beside it, the featured scent,
+// and the mark of where this started.
 
 import { SCENTS } from './scents.js';
 import { initLogo, SHINE } from './logo.js';
+import { initInquiry } from './inquiry.js';
 
 // The glitching screen. How long each picture is held before it changes over —
 // the statement is read rather than glanced at, so it stays up more than twice
@@ -17,8 +18,19 @@ const GLITCH_SWAP = 190;
 // The scent the home page holds up. Fixed, not rotated.
 const FEATURED_ID = 'radnaskela-edc';
 
+// One announcement for now. Newest first, if this ever grows.
+const NEWS = [
+  {
+    eyebrow: 'News',
+    title: 'Sniffing Sessions',
+    body: 'Book your spot in the sniffing session by sending us a message with '
+      + 'your name, your preferred date and the amount of people coming.',
+    photo: 'assets/AP_SS_26_SeptOct_web.png',
+  },
+];
+
 /**
- * Runs the two pictures on the screen between the news and the featured card,
+ * Runs the two pictures on the screen between the film and the featured card,
  * each swapped for the next behind a burst of glitch.
  *
  * @param view the home view, checked for being on screen before anything moves
@@ -111,20 +123,6 @@ function initManifesto(view) {
   };
 }
 
-// One item for now. Newest first, if this ever grows.
-const NEWS = [
-  {
-    eyebrow: 'News',
-    date: '28 August',
-    title: 'Invisible Placemakers',
-    body: 'Galerija Čubra, Patrijarha Varnave, 29–30 August, 12–20h. The '
-      + 'exhibition explores scent as an invisible architectural material that '
-      + 'occupies space, follows movement through the city, attaches itself to '
-      + 'memory, and participates in shaping what we experience as home.',
-    photo: 'assets/exhibition.jpg',
-  },
-];
-
 /**
  * @param root the home view
  * @param onOpenScent called with a scent id when the featured card is clicked
@@ -137,11 +135,21 @@ export function initHome(root, { onOpenScent } = {}) {
   newsEl.innerHTML = `
     <div class="home-news-text">
       <p class="home-eyebrow">${item.eyebrow}</p>
-      <p class="home-news-date">${item.date}</p>
       <h2 class="home-news-title">${item.title}</h2>
       <p class="home-news-body">${item.body}</p>
+      <button class="home-news-inquire" type="button">Inquire</button>
     </div>
     ${item.photo ? `<img class="home-news-photo" src="${item.photo}" alt="">` : ''}`;
+
+  const sniffInquiry = initInquiry({
+    eyebrow: 'Inquire',
+    title: 'Sniffing Sessions',
+    sendLabel: 'Send message',
+    id: 'inquiry-home',
+  });
+  newsEl.addEventListener('click', (event) => {
+    if (event.target.closest('.home-news-inquire')) sniffInquiry.open();
+  });
 
   const featured = SCENTS.find((scent) => scent.id === FEATURED_ID);
   if (featured) {

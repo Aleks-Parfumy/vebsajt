@@ -11,7 +11,7 @@ import { initAtelier } from './atelier.js';
 import { initContact } from './contact.js';
 import { initHome } from './home.js';
 import { initMarquee } from './marquee.js';
-import { isMobile, initPressDelay } from './mobile.js';
+import { isMobile, initPressDelay, initNavDrift } from './mobile.js';
 
 // ---- Config ----------------------------------------------------------------
 // The model itself, its centre, its height and the anchor piece ("Curve", the
@@ -28,7 +28,8 @@ const SCATTER_MAX = 45;
 const NEAR_FRAC = 0.08;
 
 // Glow of the anchor piece: colour, the little it keeps when fully scattered,
-// and how strong the emissive gets at full proximity. Stays gold — the one
+// and how strong the emissive gets at full proximity — halved from 0.35/2.5,
+// which read as too bright on the intro. Stays gold — the one
 // place on the site that keeps its original colour rather than the iris
 // gradient, since it's the piece's own glow rather than a UI accent.
 //
@@ -37,8 +38,8 @@ const NEAR_FRAC = 0.08;
 // which on a bright screen can be read as an intro that failed to load. Kept
 // under the bloom's threshold, so only the assembled glow blooms.
 const GLOW_COLOUR = '#ffe119';
-const GLOW_REST = 0.35;
-const GLOW_MAX = 2.5;
+const GLOW_REST = 0.175;
+const GLOW_MAX = 1.25;
 
 // The cursor drives the assembly — but a cursor that never moves sends no
 // pointermove at all, and there are ordinary ways for that to happen: a window
@@ -101,6 +102,11 @@ const canvas = document.getElementById('scene');
 const loadingEl = document.getElementById('loading');
 const hintEl = document.getElementById('hint');
 const site = document.getElementById('site');
+
+// Start fetching the backdrop while the intro is still up, so it is already
+// cached (or nearly) when the site reveals and never appears to stream in over
+// the black base behind it.
+new Image().src = 'assets/pozadina.png';
 
 // ---- Renderer / scene / camera ---------------------------------------------
 // A phone pays for every pixel several times over: the scene is drawn into a
@@ -507,20 +513,33 @@ intro.addEventListener('click', startBlast);
 
 function revealSite() {
   if (done) return;
-  done = true; // stop the render loop
-  intro.hidden = true; // drop the 3D canvas
-  site.hidden = false;
+
+  // Reveal the site and cross-fade the intro out over it. The site has been in
+  // the layout (painted, just transparent) for the whole intro, so there is
+  // nothing left to rasterise at this point — no frozen intro frame and no
+  // first-frame pop-in.
+  site.classList.remove('is-veiled');
+  site.removeAttribute('aria-hidden');
 
   // Home was never opened — it was simply the section that wasn't hidden — so
   // nothing has run its activate() yet, and the screen on it only starts once
-  // something has.
-  showView('home');
+  // something has. A deep link to a scent (see openScentFromHash below) opens
+  // that instead.
+  if (!openScentFromHash()) showView('home');
 
-  // Everything left is giving the GPU its memory back, and nothing is waiting
-  // on it. Held until the page has painted: run here, it would keep the last
-  // frame of the intro on screen for as long as it took, which reads as the
-  // animation freezing before the site appears.
-  requestAnimationFrame(() => setTimeout(disposeIntro, 0));
+  intro.classList.add('is-fading');
+
+  // Once the fade has finished, drop the intro and give the GPU its memory
+  // back. Held on a timer that matches the CSS fade (0.3s), plus a beat for the
+  // last frame to be drawn.
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      done = true; // stop the render loop now the intro is gone
+      intro.hidden = true;
+      intro.classList.remove('is-fading');
+      setTimeout(disposeIntro, 0);
+    }, 320);
+  });
 }
 
 // The model's own geometry and materials stay alive — model.js caches and hands
@@ -559,6 +578,21 @@ const scents = initScents(views.get('scents'), {
 // home and the finder's result, so both land the same way.
 const openScent = (id) => { showView('scents'); scents.openScent(id); };
 
+// The finder's alternate suggestion is a real link (see renderResult in
+// scent-finder.js), so a scent can be addressed by URL: #scent-<id>. Following
+// that hash opens the scent's page, whether it happened before the site was
+// revealed (revealSite above) or afterwards.
+const SCENT_HASH = /^#scent-(.+)$/;
+
+function openScentFromHash() {
+  const match = window.location.hash.match(SCENT_HASH);
+  if (!match) return false;
+  openScent(match[1]);
+  return true;
+}
+
+window.addEventListener('hashchange', openScentFromHash);
+
 const controllers = new Map([
   ['home', initHome(views.get('home'), { onOpenScent: openScent })],
   ['scents', scents],
@@ -578,21 +612,26 @@ for (const button of navButtons) {
   button.querySelector('.nav-art').append(homeShape);
 }
 
-// The Scents button also carries the bloom the scents page hangs, shown in
-// place of the monogram while a single scent is open: there, the button leads
-// back to the field rather than home, so it wears the field's own mark.
-const scentsButton = navButtons.find((b) => b.dataset.view === 'scents');
-const backShape = document.createElement('span');
-backShape.className = 'shape shape--flower-colour nav-back-shape';
-backShape.setAttribute('aria-hidden', 'true');
-scentsButton.querySelector('.nav-art').append(backShape);
+// The Scents buttons (one in each marquee group on a phone) also carry the
+// bloom the scents page hangs, shown in place of the monogram while a single
+// scent is open: there, the button leads back to the field rather than home,
+// so it wears the field's own mark.
+const scentsButtons = navButtons.filter((b) => b.dataset.view === 'scents');
+for (const button of scentsButtons) {
+  const backShape = document.createElement('span');
+  backShape.className = 'shape shape--flower-colour nav-back-shape';
+  backShape.setAttribute('aria-hidden', 'true');
+  button.querySelector('.nav-art').append(backShape);
+}
 
-/** Switches the Scents button between "home" and "back to all scents". */
+/** Switches the Scents buttons between "home" and "back to all scents". */
 function setScentDetail(open) {
-  scentsButton.classList.toggle('is-scent-detail', open);
-  if (scentsButton.classList.contains('is-active')) {
-    scentsButton.querySelector('.nav-label').textContent =
-      open ? 'All scents' : 'Home';
+  for (const button of scentsButtons) {
+    button.classList.toggle('is-scent-detail', open);
+    if (button.classList.contains('is-active')) {
+      button.querySelector('.nav-label').textContent =
+        open ? 'All scents' : 'Home';
+    }
   }
 }
 
@@ -601,7 +640,7 @@ function showView(name) {
   for (const button of navButtons) {
     const active = button.dataset.view === name;
     button.classList.toggle('is-active', active);
-    const back = active && button === scentsButton
+    const back = active && button.dataset.view === 'scents'
       && button.classList.contains('is-scent-detail');
     button.querySelector('.nav-label').textContent =
       back ? 'All scents' : active ? 'Home' : button.dataset.label;
@@ -609,18 +648,20 @@ function showView(name) {
   controllers.get(name)?.activate?.();
 }
 
-for (const button of navButtons) {
-  button.addEventListener('click', () => {
-    if (!button.classList.contains('is-active')) {
-      showView(button.dataset.view);
-    } else if (button === scentsButton && button.classList.contains('is-scent-detail')) {
-      // A scent's own page is open: the bloom leads back to the field, not home.
-      scents.showField();
-    } else {
-      showView('home');
-    }
-  });
-}
+// One listener on the strip rather than one per button, so the duplicate group
+// the phone's marquee slides past responds exactly like the original.
+document.getElementById('nav-scroll').addEventListener('click', (event) => {
+  const button = event.target.closest('.nav-btn[data-view]');
+  if (!button) return;
+  if (!button.classList.contains('is-active')) {
+    showView(button.dataset.view);
+  } else if (button.dataset.view === 'scents' && button.classList.contains('is-scent-detail')) {
+    // A scent's own page is open: the bloom leads back to the field, not home.
+    scents.showField();
+  } else {
+    showView('home');
+  }
+});
 
 // ---- The bottom strip on a phone -------------------------------------------
 // Folding it away hands its height back to the view above, so the strip can be
@@ -642,6 +683,10 @@ initMarquee(document.getElementById('marquee'));
 // On a touch screen the hover animations play on the press instead, and the
 // site waits for them before it moves.
 initPressDelay();
+
+// The phone's bottom nav drifts slowly left-to-right, but always yields to a
+// user's own swipe or scroll.
+initNavDrift(document.getElementById('nav-scroll'));
 
 // ---- Resize ----------------------------------------------------------------
 // Every one of these reallocates the composer's buffer and the bloom's five

@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aleks Parfumy</title>
+  <!-- Paint the page dark before the stylesheet arrives, so a slow connection
+       never flashes a white viewport while the site and its backdrop load. -->
+  <style>html, body { background: #000; }</style>
+  <!-- Fetch the backdrop while the intro is still on screen, so it is already
+       cached when the site reveals and never appears to stream in. -->
+  <link rel="preload" as="image" href="assets/pozadina.png" fetchpriority="low">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
@@ -29,7 +35,10 @@
   </div>
 
   <!-- The actual site, revealed after the click -->
-  <main id="site" hidden>
+  <!-- Not `hidden`: the site stays in the layout (behind the intro, faded out)
+       so it is fully painted by the time the intro ends, rather than painting
+       its first frame at the reveal. -->
+  <main id="site" class="is-veiled" aria-hidden="true">
     <!-- Left sidebar. Each button wears the same ring artefact laid on its
          side, in the iridescent colours it was drawn in, with the page title
          sitting in the hole at its centre. -->
@@ -46,17 +55,17 @@
           </span>
           <span class="nav-label">Scents</span>
         </button>
+        <button class="nav-btn" type="button" data-view="finder">
+          <span class="nav-art" aria-hidden="true">
+            <span class="shape nav-shape shape--ring-horizontal"></span>
+          </span>
+          <span class="nav-label">Parfum finder</span>
+        </button>
         <button class="nav-btn" type="button" data-view="atelier">
           <span class="nav-art" aria-hidden="true">
             <span class="shape nav-shape shape--ring-horizontal"></span>
           </span>
           <span class="nav-label">Atelier</span>
-        </button>
-        <button class="nav-btn" type="button" data-view="finder">
-          <span class="nav-art" aria-hidden="true">
-            <span class="shape nav-shape shape--ring-horizontal"></span>
-          </span>
-          <span class="nav-label">Scent finder</span>
         </button>
         <button class="nav-btn" type="button" data-view="contact">
           <span class="nav-art" aria-hidden="true">
@@ -64,6 +73,34 @@
           </span>
           <span class="nav-label">Contact</span>
         </button>
+        <!-- An identical second set, only laid out beside the first on a phone.
+             It makes the strip's slow left-to-right loop seamless. -->
+        <div class="nav-group--clone" aria-hidden="true">
+          <button class="nav-btn" type="button" data-view="scents" tabindex="-1">
+            <span class="nav-art" aria-hidden="true">
+              <span class="shape nav-shape shape--ring-horizontal"></span>
+            </span>
+            <span class="nav-label">Scents</span>
+          </button>
+          <button class="nav-btn" type="button" data-view="finder" tabindex="-1">
+            <span class="nav-art" aria-hidden="true">
+              <span class="shape nav-shape shape--ring-horizontal"></span>
+            </span>
+            <span class="nav-label">Parfum finder</span>
+          </button>
+          <button class="nav-btn" type="button" data-view="atelier" tabindex="-1">
+            <span class="nav-art" aria-hidden="true">
+              <span class="shape nav-shape shape--ring-horizontal"></span>
+            </span>
+            <span class="nav-label">Atelier</span>
+          </button>
+          <button class="nav-btn" type="button" data-view="contact" tabindex="-1">
+            <span class="nav-art" aria-hidden="true">
+              <span class="shape nav-shape shape--ring-horizontal"></span>
+            </span>
+            <span class="nav-label">Contact</span>
+          </button>
+        </div>
       </div>
     </nav>
 
@@ -71,7 +108,7 @@
       <div id="home">
         <div id="home-news"></div>
 
-        <!-- A second screen in the same bezel as the film, between the news and
+        <!-- A second screen in the same bezel as the film, between the film and
              the featured scent. It holds two pictures in turn — the monogram in
              gold (the real 3D artwork, as on the contact page), then what the
              house is — and swaps them behind a burst of
@@ -154,32 +191,9 @@
     </section>
 
     <section class="view" data-view="atelier" hidden>
-      <!-- photograph chosen at random by atelier.js each time this opens -->
-      <div id="atelier-backdrop" aria-hidden="true"></div>
-      <div id="atelier-text">
-        <h2>The Atelier</h2>
-        <!-- Four beats, each its own paragraph: what an atelier is, who works
-             in this one, what it is to him, and what is actually done here. -->
-        <p>The Atelier is in the traditional sense the artist&rsquo;s abode. A
-           place of experiment and creation, where intention meets instinct.</p>
-        <p>The founder, creative director and perfumer of the atelier is Hadži
-           Aleksandar Columby-Micić (also known as Aleksandar Columby), while its
-           muses are many. Drawing inspiration from raw materials, natural and
-           urban scentscapes, family history and close friends. At Aleks
-           Parfumy, we believe that with great care, meticulous attention to
-           detail and refined craftsmanship, anything can be transformed into a
-           fragrance.</p>
-        <p>The AP Atelier is a spacetime in which inspirations and ideas spring
-           up, fly, melt and transmute into creations that live unbound. For
-           Columby-Micić the Atelier transcends the spatial dimension, and
-           operates as a consciousness of its own, requiring interpretation by
-           the perfumer who allows it to weave its fragrant threads into the
-           hearts of our customers.</p>
-        <p>It is here where the whole process of creation and production takes
-           place, from drawing concepts and running tests, to creative
-           composition, bottling and finally packaging. All AP fragrances are
-           hand-crafted in Prague by Columby-Micić himself.</p>
-      </div>
+      <!-- Posts are built by atelier.js: a row on desktop, a column on a
+           phone, each post one or more swipable parts. -->
+      <div id="atelier-scroll"></div>
     </section>
 
     <section class="view" data-view="contact" hidden>
@@ -211,7 +225,7 @@
       <div class="marquee-track">
         <span class="marquee-group">
           <span>Welcome to the Aleks Parfumy website and experience</span>
-          <span class="marquee-sep" aria-hidden="true">✦</span>
+          <span class="marquee-sep" aria-hidden="true"></span>
         </span>
       </div>
     </div>

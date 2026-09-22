@@ -2,7 +2,12 @@
 // time and temperature in the three cities Aleks Parfumy keeps time with, so
 // the strip reads:
 //
-//   welcome ✦ Belgrade ✦ welcome ✦ Cairo ✦ welcome ✦ Prague ✦  (then repeats)
+//   welcome ◆ Belgrade ◆ welcome ◆ Cairo ◆ welcome ◆ Prague ◆  (then repeats)
+//
+// The ◆ is not a typed glyph — it is a small rotated square drawn in CSS
+// (see .marquee-sep in style.css). The character it replaces (✦) is missing
+// from many fonts, including the bundled one, and a missing glyph renders as
+// nothing or a tofu box on some systems; a drawn shape is identical everywhere.
 //
 // Temperatures come from Open-Meteo (https://open-meteo.com) — a free, key-less
 // weather API — with all three cities fetched in one request. The clocks are
@@ -64,22 +69,24 @@ function cityLabel(city, temps) {
 }
 
 // One repeat of the strip: welcome, city, welcome, city, … each followed by a
-// separator. The track holds two identical groups and slides by -50%, so both
-// groups must be built the same way; the second is hidden from screen readers.
+// separator. The track holds two identical groups and slides by one group's
+// width, so both groups must be built the same way; the second is hidden from
+// screen readers.
 function buildGroup(temps, ariaHidden) {
   const group = document.createElement('span');
   group.className = 'marquee-group';
   if (ariaHidden) group.setAttribute('aria-hidden', 'true');
 
+  const cities = [];
   const add = (text, className) => {
     const span = document.createElement('span');
     span.textContent = text;
     if (className) span.className = className;
     group.append(span);
+    return span;
   };
   const separator = () => {
     const sep = document.createElement('span');
-    sep.textContent = '✦';
     sep.className = 'marquee-sep';
     sep.setAttribute('aria-hidden', 'true');
     group.append(sep);
@@ -88,70 +95,136 @@ function buildGroup(temps, ariaHidden) {
   for (const city of CITIES) {
     add(WELCOME);
     separator();
-    add(cityLabel(city, temps), 'marquee-city');
+    const citySpan = add(cityLabel(city, temps), 'marquee-city');
+    cities.push({ city, span: citySpan });
     separator();
   }
-  return group;
+  return { group, cities };
 }
 
-// Rebuild both groups in place. The scroll animation lives on the track itself,
-// which is left untouched, so swapping its children never interrupts the slide.
-function render(track, temps) {
-  track.replaceChildren(buildGroup(temps, false), buildGroup(temps, true));
-}
+// The text's one full cycle: it travels exactly one group's width in this time.
+const TEXT_DURATION_S = 60;
 
-// Match the ribbon backdrop's scroll speed to the text's. The text travels one
-// group's width over its own animation duration, so its pixel speed is
-// groupWidth / textDuration. The ribbon must cover one tile (--ribbon-w, which
-// is strip-height × the image's 3508/121 aspect) at that same speed, so its
-// duration is tileWidth / textSpeed. Re-run whenever the group width changes
-// (weather loading, a resize): the ribbon tiles are identical, so restarting
-// its animation is invisible — there is no seam or landmark to betray a jump.
-function syncRibbonSpeed(strip, track) {
-  const group = track.querySelector('.marquee-group');
-  if (!group) return;
-  const groupWidth = group.getBoundingClientRect().width;
-  const textDuration = parseFloat(getComputedStyle(track).animationDuration) || 0;
-  if (!groupWidth || !textDuration) return; // reduced motion / not laid out yet
-
-  const stripHeight = strip.getBoundingClientRect().height;
-  const tileWidth = (stripHeight * 3508) / 121;
-  const ribbonDuration = (tileWidth * textDuration) / groupWidth;
-  strip.style.setProperty('--ribbon-duration', `${ribbonDuration}s`);
-}
-
+// Match the ribbon backdrop's speed to the text's. The text travels one group's
+// width over TEXT_DURATION_S, so its pixel speed is groupWidth / TEXT_DURATION_S.
+// The ribbon must cover one tile (--ribbon-w, which is strip-height × the
+// image's 3508/121 aspect) at that same speed, so its duration is tileWidth /
+// textSpeed. Re-run whenever the group width changes (weather loading, a
+// resize): the ribbon tiles are identical, so restarting its animation is
+// invisible — there is no seam or landmark to betray a jump.
 export function initMarquee(root) {
   const track = root?.querySelector('.marquee-track');
   if (!track) return;
 
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let temps = {};
-  const draw = () => {
-    render(track, temps);
-    syncRibbonSpeed(root, track);
-  };
-  // Only the text on this first pass: syncing the ribbon means measuring the
-  // strip, and at this point the site is still hidden behind the intro, so
-  // there is nothing to measure — all forcing a layout this early would
-  // achieve is a warning about doing it before the stylesheet has landed. The
-  // observer below does the first real sync.
-  render(track, temps);
+  let textRafId = null;
+  let pos = 0;
+  let lastTime = performance.now();
+  let speed = 0; // px per second
+  let lastGroupWidth = 0;
+  let lastRibbonDuration = 0;
+  let citySpans = [];
+
+  function render() {
+    const first = buildGroup(temps, false);
+    const second = buildGroup(temps, true);
+    track.replaceChildren(first.group, second.group);
+    citySpans = [...first.cities, ...second.cities];
+  }
+
+  // Update only the city/time/temperature text in place. The welcome line and
+  // separators never change, so there is no need to rebuild the DOM every tick
+  // — replacing children on a moving, composited track is a good way to make
+  // iOS text blink or jump.
+  function updateCityText() {
+    for (const { city, span } of citySpans) {
+      span.textContent = cityLabel(city, temps);
+    }
+  }
+
+  function syncRibbonSpeed(groupWidth) {
+    if (!groupWidth) return;
+    const stripHeight = root.getBoundingClientRect().height;
+    if (!stripHeight) return;
+    const tileWidth = (stripHeight * 3508) / 121;
+    const ribbonDuration = (tileWidth * TEXT_DURATION_S) / groupWidth;
+    // Only touch the style when the value actually changes enough to matter,
+    // so the ribbon animation isn't restarted by sub-pixel measurement wobble.
+    if (Math.abs(ribbonDuration - lastRibbonDuration) < 0.05) return;
+    lastRibbonDuration = ribbonDuration;
+    root.style.setProperty('--ribbon-duration', `${ribbonDuration}s`);
+  }
+
+  // Animate the text with a rAF loop, snapping the transform to whole pixels.
+  // A continuously interpolated transform leaves the glyphs on sub-pixel
+  // positions, which reads as a slight shimmer/wobble on moving text. Whole-pixel
+  // steps keep it still. The transform is still composited by the browser, so it
+  // moves on the same GPU timeline as the ribbon; the loop just decides the
+  // position each frame.
+  //
+  // (An earlier attempt used the Web Animations API plus will-change:transform
+  // to hand this to the compositor outright, but that made iOS Safari drop the
+  // text entirely — so it stays on this plain rAF loop, which is what Safari
+  // has proven it can render.)
+  function startTextAnimation(groupWidth) {
+    if (reduced) return;
+    // Restart only on a meaningful change. A clock tick can nudge a digit's
+    // width by a pixel or two when the font's figures aren't tabular; restarting
+    // then would jump the whole strip once a minute. Real changes — weather
+    // loading, a breakpoint flip — are tens or hundreds of pixels.
+    if (!groupWidth || Math.abs(groupWidth - lastGroupWidth) < 2) return;
+    lastGroupWidth = groupWidth;
+    speed = groupWidth / TEXT_DURATION_S;
+
+    if (textRafId) cancelAnimationFrame(textRafId);
+    pos = 0;
+    lastTime = performance.now();
+    textRafId = requestAnimationFrame(step);
+  }
+
+  function step(now) {
+    textRafId = requestAnimationFrame(step);
+    // No upper clamp on dt. The text must advance by the real elapsed time so
+    // it stays in step with the ribbon's CSS animation; clamping used to cap a
+    // late frame at 0.1s and silently throw the rest away, so every main-thread
+    // stall left the text permanently behind the ribbon.
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    pos += speed * dt;
+    if (pos >= lastGroupWidth) pos -= lastGroupWidth;
+    track.style.transform = `translateX(${-Math.round(pos)}px)`;
+  }
+
+  function sync() {
+    const group = track.querySelector('.marquee-group');
+    const groupWidth = group ? Math.round(group.getBoundingClientRect().width) : 0;
+    syncRibbonSpeed(groupWidth);
+    startTextAnimation(groupWidth);
+  }
+
+  render();
 
   const loadWeather = () =>
     fetchTemps()
       .then((t) => {
         temps = t;
-        draw();
+        updateCityText();
+        sync();
       })
       .catch(() => {}); // no weather is fine — the clocks still run
 
   loadWeather();
-  setInterval(draw, CLOCK_MS);
+  setInterval(() => {
+    updateCityText();
+    sync();
+  }, CLOCK_MS);
   setInterval(loadWeather, WEATHER_MS);
-  // The strip has no size while the intro hides the site, so the first sync
-  // measures zero and is skipped. A ResizeObserver re-syncs the instant the
-  // strip gains a size (when the site is revealed) and on every later size
-  // change — the mobile breakpoint's shorter strip, an orientation flip — each
-  // of which changes the tile width. Cheaper and more reliable than guessing
-  // when the strip becomes visible.
-  new ResizeObserver(() => syncRibbonSpeed(root, track)).observe(root);
+
+  // The strip already has a size during the intro (the site is kept in the
+  // layout, just faded out), so this observer's first pass can already measure
+  // and sync. It re-syncs on every later size change — the mobile breakpoint's
+  // shorter strip, an orientation flip — each of which changes the tile width.
+  new ResizeObserver(sync).observe(root);
 }

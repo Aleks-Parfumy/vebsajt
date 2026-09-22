@@ -18,6 +18,109 @@ export function onLayoutChange(fn) {
   mq.addEventListener('change', fn);
 }
 
+// ---- Slowly drifting nav strip on a phone ----------------------------------
+// The sidebar's options drift left-to-right on their own, looping through two
+// identical groups so the wrap-around is invisible. The user can grab or scroll
+// the strip at any time; the drift holds off for a moment after they let go,
+// then eases back in.
+const NAV_DRIFT_SPEED = 18;      // CSS pixels per second
+const NAV_DRIFT_HOLD_MS = 3000;  // pause after the user stops scrolling
+
+export function initNavDrift(navScroll) {
+  if (!navScroll) return;
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let rafId = null;
+  let last = performance.now();
+  let interacting = false;
+  let holdUntil = 0;
+  let groupWidthPx = 0;
+  let pos = 0;        // drift position, kept as a float: scrollLeft rounds to
+                      // whole pixels, so reading it back can stall the motion
+  let seeded = false; // pos has been set to a real scroll position
+
+  function measureGroupWidth() {
+    // The strip holds exactly two identical sets, so half of its scrollable
+    // width is one set — the distance that wraps seamlessly.
+    groupWidthPx = navScroll.scrollWidth / 2;
+  }
+
+  // Re-measure once the site is revealed and whenever the strip changes size,
+  // since the group's width is viewport-based. Before the reveal the strip has
+  // no box, so the initial measure reads 0 and this observer fills it in.
+  new ResizeObserver(measureGroupWidth).observe(navScroll);
+
+  function tick(now) {
+    rafId = requestAnimationFrame(tick);
+    const dt = Math.min((now - last) / 1000, 0.1); // guard against tab-switch leaps
+    last = now;
+
+    if (interacting || now < holdUntil) return;
+    if (groupWidthPx <= 0) return;
+
+    // 0 and groupWidthPx look identical (the two groups are copies), so we seed
+    // one group over: it gives room to keep drifting left-to-right before the
+    // first wrap.
+    if (!seeded) {
+      pos = groupWidthPx;
+      seeded = true;
+    }
+
+    // Decreasing pos slides the content to the right (left-to-right).
+    pos -= NAV_DRIFT_SPEED * dt;
+    if (pos <= 0) pos += groupWidthPx; // the wrap is seamless
+    navScroll.scrollLeft = pos;
+  }
+
+  function start() {
+    if (rafId || !isMobile() || reduced.matches) return;
+    last = performance.now();
+    interacting = false;
+    holdUntil = 0;
+    seeded = false;
+    pos = 0;
+    measureGroupWidth();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function engage() {
+    interacting = true;
+    pos = navScroll.scrollLeft; // remember where the user's drag started
+  }
+
+  function release() {
+    interacting = false;
+    pos = navScroll.scrollLeft; // resume drifting from wherever they left it
+    seeded = true;
+    holdUntil = performance.now() + NAV_DRIFT_HOLD_MS;
+  }
+
+  // Track the real scroll position while the user is dragging and through the
+  // momentum that follows their release, so the drift resumes from where the
+  // strip actually settles instead of snapping back to an earlier spot.
+  navScroll.addEventListener('scroll', () => {
+    if (interacting || performance.now() < holdUntil) pos = navScroll.scrollLeft;
+  }, { passive: true });
+
+  navScroll.addEventListener('pointerdown', engage, { passive: true });
+  navScroll.addEventListener('pointerup', release, { passive: true });
+  navScroll.addEventListener('pointercancel', release, { passive: true });
+  navScroll.addEventListener('wheel', release, { passive: true });
+  navScroll.addEventListener('touchstart', engage, { passive: true });
+  navScroll.addEventListener('touchend', release, { passive: true });
+  navScroll.addEventListener('touchcancel', release, { passive: true });
+
+  onLayoutChange(() => (isMobile() ? start() : stop()));
+  start();
+}
+
 // ---- Press instead of hover -------------------------------------------------
 // On a pointer device the hover animation plays while you decide, and the click
 // acts at once. A touch screen has no such moment, so the tap plays the same
@@ -29,6 +132,7 @@ const PRESS_TARGETS = [
   ['.nav-btn', 620],
   ['.scent-bloom', 620],
   ['.home-featured-card', 340],
+  ['.home-news-inquire', 280],
   ['.scent-inquire', 280],
   ['.inquiry-send', 280],
   ['.inquiry-close', 220],

@@ -44,18 +44,68 @@
   );
 
   /* Typography, per the brand direction: Beirut for display/headings (Latin
-     and Arabic), Hiragino Maru Gothic ProN for running text. Neither is a
-     free webfont — until licensed woff2 files are dropped in (see the
-     @font-face block below), Beirut resolves only where it's installed
-     locally and Hiragino only on macOS/iOS, so both stacks name a fallback
-     of similar colour and width to keep the layout intact everywhere else. */
+     and Arabic), Hiragino Maru Gothic ProN for running text. The running text
+     is served from assets/fonts as M PLUS Rounded 1c — the closest
+     freely-licensed rounded gothic — so every platform now gets the same face
+     (with a real 700 weight, no synthesised bold) instead of Hiragino only on
+     macOS/iOS. Beirut still has no free equivalent and resolves locally only;
+     drop licensed woff2 files into assets/fonts and uncomment the @font-face
+     block below to serve it everywhere. */
   --font-heading: "Beirut", "Hiragino Mincho ProN", "Times New Roman", serif;
-  --font-body: "Hiragino Maru Gothic ProN", "Hiragino Maru Gothic Pro",
-    "Hiragino Sans", "Varela Round", system-ui, -apple-system, sans-serif;
+  --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN",
+    "Hiragino Maru Gothic Pro", "Hiragino Sans", "Varela Round",
+    system-ui, -apple-system, sans-serif;
+}
+
+/* ---- Bundled running-text font --------------------------------------------
+   Latin and latin-ext are split by unicode-range so a visitor only downloads
+   the slice the page actually needs; the Latin slice alone covers the marquee
+   (letters, digits, the · and ° glyphs), while latin-ext adds ć/ž/č and the
+   rest of the extended set used in the copy. */
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/m-plus-rounded-1c-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/m-plus-rounded-1c-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("assets/fonts/m-plus-rounded-1c-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("assets/fonts/m-plus-rounded-1c-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 /* Drop licensed woff2 files into assets/fonts and uncomment to serve Beirut
-   to every visitor rather than only to machines that already have it.
+   (display/headings) to every visitor rather than only to machines that
+   already have it.
 @font-face {
   font-family: "Beirut";
   src: url("assets/fonts/beirut.woff2") format("woff2");
@@ -69,7 +119,7 @@
    once. Text whose colour also changes with hover/press state is handled
    at that rule instead, since inverting a clipped background back to a
    plain colour needs more than overriding `color`. */
-.home-news-date,
+.atelier-post-date,
 .home-featured-line,
 .scent-detail-tagline {
   background-image: var(--iris-gradient);
@@ -83,6 +133,15 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Pin the root font size so the rem-based layout (strip height, nav sizing,
+   type scale) ignores the OS/browser text-size setting and stays exactly as
+   authored. */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html, body {
@@ -101,8 +160,17 @@ h1, h2, h3, h4, h5, h6 {
 #intro {
   position: fixed;
   inset: 0;
+  z-index: 2;
   cursor: pointer;
   background: #0e0e10;
+  /* Cross-faded out over the site instead of being removed instantly, so the
+     site has time to paint while the intro is still on top. */
+  transition: opacity 0.3s ease;
+}
+
+#intro.is-fading {
+  opacity: 0;
+  pointer-events: none;
 }
 
 #scene {
@@ -146,10 +214,28 @@ h1, h2, h3, h4, h5, h6 {
 #site {
   position: fixed;
   inset: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0e0e10;
+  /* The site-wide backdrop: a single image behind every page. The atelier
+     carries its own photographs (see .view[data-view="atelier"] below), so it
+     covers this again there. A black base sits behind the image while it is
+     still downloading, so a slow connection never shows a pale gap. */
+  background-color: #000;
+  background-image: url('assets/pozadina.png');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  /* The site cross-fades in over the intro instead of popping in. */
+  transition: opacity 0.3s ease;
+}
+
+/* During the intro the site is kept in the layout and painted, just transparent
+   and inert, so the reveal has nothing left to rasterise. */
+#site.is-veiled {
+  opacity: 0;
+  pointer-events: none;
 }
 
 #site h1 {
@@ -261,15 +347,16 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---- Home ---- */
-/* Three columns: the news over the film on the left, the glitching screen in
-   the middle, and on the right the featured scent with the discovery set right
-   under it. The middle and right columns both span the two upper rows and sit
-   at the top of that span, so their own heights never push the film down; the
-   second row takes the slack. Where this started signs off the page in its own
-   row at the foot of the grid, spanning all three columns — see #home-est.
-   Scrolls internally rather than clipping when a short window can't fit
-   everything; no bottom padding to speak of, so scrolled all the way down,
-   content runs right up under the strip rather than stopping short of it. */
+/* Three columns: the announcement over the film on the left, the glitching
+   screen in the middle, and on the right the featured scent with the discovery
+   set right under it. The middle and right columns both span the two upper
+   rows and sit at the top of that span, so their own heights never push the
+   film down; the second row takes the slack. Where this started signs off the
+   page in its own row at the foot of the grid, spanning all three columns —
+   see #home-est. Scrolls internally rather than clipping when a short window
+   can't fit everything; no bottom padding to speak of, so scrolled all the way
+   down, content runs right up under the strip rather than stopping short of
+   it. */
 #home {
   position: absolute;
   inset: 0;
@@ -290,6 +377,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.75rem;
 }
 
+/* The announcement in the top-left of the page, with its poster beside it. */
 #home-news {
   grid-column: 1;
   grid-row: 1;
@@ -311,13 +399,6 @@ h1, h2, h3, h4, h5, h6 {
   flex: none;
 }
 
-.home-news-date {
-  font-size: 0.75rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-}
-
 .home-news-title {
   font-size: 1.75rem;
   font-weight: 400;
@@ -329,6 +410,32 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.9rem;
   line-height: 1.7;
   opacity: 0.65;
+}
+
+/* The button under the announcement, opening the same inquiry popup the rest
+   of the site uses. Styled like the form's own send button, so the two read
+   as the same action. */
+.home-news-inquire {
+  margin-top: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: none;
+  border: 1px solid transparent;
+  border-image: var(--iris-gradient) 1;
+  color: var(--iris-solid);
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.home-news-inquire:hover,
+.home-news-inquire:focus-visible,
+.home-news-inquire.is-pressed {
+  background: var(--iris-gradient);
+  color: #0e0e10;
+  outline: none;
 }
 
 /* The right-hand column: the featured card and the discovery set, one small
@@ -830,11 +937,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .scent-name {
   font-size: 0.65rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.5;
   transition: opacity 0.3s ease;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: center;
+  line-height: 1.25;
+  max-width: var(--col, 9rem);
 }
 
 .scent-bloom:hover .scent-shape,
@@ -1019,19 +1130,56 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---- Atelier ---- */
-/* The photograph fills the view; the text sits over it, left of centre. */
-#atelier-backdrop {
+/* The atelier brings its own photographs, so it sits on the plain dark ground
+   instead of the site-wide pozadina behind every other page. */
+.view[data-view="atelier"] {
+  background: #0e0e10;
+}
+
+/* A row of posts, scrolled sideways on a wide screen. Each post leaves a sliver
+   of the next one showing, so the scroll is discoverable. */
+#atelier-scroll {
   position: absolute;
   inset: 0;
-  background-position: center;
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+}
+
+.atelier-post {
+  flex: 0 0 calc(100% - 7rem);
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.atelier-post-parts {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.atelier-part {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The first post: a photograph with the atelier's own words over it. */
+.atelier-part--cover {
+  position: relative;
   background-size: cover;
+  background-position: center;
   background-repeat: no-repeat;
 }
 
-/* Keeps the text readable whichever photograph comes up. The middle stop sits
-   where the text's right edge does, so the copy is dark all the way across and
-   the photograph only comes up in what is left beyond it. */
-#atelier-backdrop::after {
+/* Keeps the text readable whichever photograph comes up. */
+.atelier-part--cover::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1043,40 +1191,83 @@ h1, h2, h3, h4, h5, h6 {
   );
 }
 
-#atelier-text {
+.atelier-part-text--cover {
   position: relative;
-  /* Half the view, so the copy reads across the photograph rather than down a
-     narrow column beside it, while the photograph keeps the other half to
-     itself. The phone sets its own width (see below), and this never runs into
-     the right-hand edge: the widest it gets is this plus the 4rem it is inset
-     by. */
+  z-index: 1;
   width: 50%;
-  margin-right: auto;
-  margin-left: 4rem;
-  /* The text is longer than the panel it sits in on a short window, and the
-     view itself never scrolls — so it scrolls inside its own box, the way the
-     phone's does and the way a scent's story does. */
-  max-height: calc(100% - 4rem);
+  max-width: 42rem;
+  max-height: calc(100% - 8rem);
+  margin: 4rem;
   overflow-y: auto;
 }
 
-#atelier-text h2 {
+.atelier-part-text--cover h2 {
   font-size: 2rem;
   font-weight: 400;
   letter-spacing: 0.04em;
   margin-bottom: 1.25rem;
 }
 
-#atelier-text p {
+.atelier-part-text--cover p {
   font-size: 0.95rem;
   line-height: 1.7;
   opacity: 0.75;
 }
 
-/* The copy is four paragraphs, so they need a gap between them; the last one
-   ends the panel and takes none. */
-#atelier-text p + p {
+.atelier-part-text--cover p + p {
   margin-top: 1rem;
+}
+
+/* The text half of a post. */
+.atelier-part--text {
+  display: flex;
+  align-items: flex-start;
+  padding: 3rem;
+  overflow-y: auto;
+}
+
+.atelier-part-inner {
+  max-width: 34rem;
+  margin: auto 0;
+}
+
+.atelier-post-date {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.atelier-post-title {
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  margin-bottom: 1rem;
+}
+
+.atelier-post-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.65;
+}
+
+.atelier-post-body + .atelier-post-body {
+  margin-top: 0.9rem;
+}
+
+/* The poster half of a post. */
+.atelier-part--poster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.atelier-part--poster img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 /* ---- Contact ---- */
@@ -1191,7 +1382,7 @@ h1, h2, h3, h4, h5, h6 {
 /* ---- Inquiry popup ---- */
 /* Left on the UA's position: fixed, which is what centres a modal dialog —
    overriding it drops the popup into the top-left corner. */
-#inquiry {
+.inquiry-dialog {
   /* the UA centres a modal dialog with margin:auto inside inset:0, which the
      universal margin reset at the top of this file would otherwise undo */
   margin: auto;
@@ -1204,7 +1395,7 @@ h1, h2, h3, h4, h5, h6 {
   overflow: visible;
 }
 
-#inquiry::backdrop {
+.inquiry-dialog::backdrop {
   background: rgba(8, 8, 10, 0.82);
 }
 
@@ -1443,7 +1634,7 @@ h1, h2, h3, h4, h5, h6 {
     display: block;
     position: absolute;
     top: 50%;
-    width: clamp(8rem, 13vw, 14rem);
+    width: clamp(12rem, 19.5vw, 21rem);
     aspect-ratio: 329 / 420; /* the sprite's own proportions */
     opacity: 0.5;
     pointer-events: none;
@@ -1535,6 +1726,7 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: 1px solid rgba(242, 242, 242, 0.3);
   color: inherit;
   font: inherit;
+  text-decoration: none;
   cursor: pointer;
   transition: border-color 0.25s ease, color 0.25s ease;
 }
@@ -1630,14 +1822,20 @@ h1, h2, h3, h4, h5, h6 {
   border-right: 1px solid rgba(242, 242, 242, 0.12);
 }
 
-/* The buttons themselves. A column on a wide screen; on a phone this is the
-   part that scrolls sideways (see the mobile section). */
+/* The buttons themselves. A column on a wide screen; on a phone they become a
+   scrollable, slowly drifting strip (see the mobile section). */
 #nav-scroll {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-evenly;
+}
+
+/* The duplicate set that makes the phone's loop seamless is hidden on a wide
+   screen, where the four real buttons are the column above. */
+.nav-group--clone {
+  display: none;
 }
 
 /* Folds the strip away on a phone; there is nothing to fold on a wide screen. */
@@ -1798,12 +1996,14 @@ h1, h2, h3, h4, h5, h6 {
   --ribbon-w: calc(var(--strip-height) * 3508 / 121);
   color: #f2ece0;
   /* The ribbon behind the text is busy and multicoloured, so the light text
-     carries a tight dark halo plus a soft outer blur — legible over any part of
-     the ribbon, bright or dark. */
+     carries a dark halo plus a moderate outer glow. Kept away from the very
+     large blur that was there before: big blurs are expensive to rasterise on
+     the moving text layer and are a common cause of iOS text flicker. */
   text-shadow:
-    0 0 4px rgba(0, 0, 0, 1),
+    0 0 3px rgba(0, 0, 0, 1),
     0 1px 5px rgba(0, 0, 0, 1),
-    0 0 14px rgba(0, 0, 0, 0.85);
+    0 0 10px rgba(0, 0, 0, 0.85);
+  -webkit-font-smoothing: antialiased;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.25em;
@@ -1820,51 +2020,83 @@ h1, h2, h3, h4, h5, h6 {
 #marquee::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  /* One tile wider than the strip, so sliding it left by exactly one tile with
+     a transform never exposes an unpainted edge. Transform is composited, so
+     the ribbon moves on the same GPU timeline as the text above it instead of
+     repainting on the main thread — the old background-position animation
+     could fall out of step and flicker on devices that throttle paint. */
+  width: calc(100% + var(--ribbon-w));
   background-image: url('assets/linijica.png');
   background-repeat: repeat-x;
   background-position-y: center;
   background-size: var(--ribbon-w) 100%;
   opacity: 0.85;
-  animation: marquee-ribbon var(--ribbon-duration, 30s) linear infinite;
+  /* Longhands rather than the `animation` shorthand: Safari does not reliably
+     re-evaluate a custom property inside the shorthand when it changes, which
+     left the ribbon running on its fallback duration instead of the synced
+     one. `animation-duration` on its own updates correctly. */
+  animation-name: marquee-ribbon;
+  animation-duration: var(--ribbon-duration, 30s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
   pointer-events: none;
 }
 
 .marquee-track {
   display: flex;
+  flex: none; /* never shrink to fit #marquee — Safari is aggressive here */
   width: max-content;
   /* Above the ribbon pseudo-element, and nudged down so the letters sit
-     optically centred in the strip. */
+     optically centred in the strip. Its motion is driven by a rAF loop in
+     marquee.js, not a CSS keyframe, because a percentage transform on a
+     max-content element is unreliable on Safari. No will-change here: layer
+     promotion inside this overflow:hidden flex strip made iOS drop the text
+     entirely, and the JS-set transform is composited anyway once it starts. */
   position: relative;
   z-index: 1;
   top: 3px;
-  /* Slower than the old two-welcome strip: it now carries three welcomes and
-     three city clocks per group, so a longer cycle keeps the reading pace. */
-  animation: marquee-scroll 60s linear infinite;
 }
 
 .marquee-group {
   display: flex;
+  flex: none;
   gap: 2.5rem;
   padding-right: 2.5rem;
+}
+
+/* Keep the individual text spans at their natural nowrap width. On iOS Safari
+   flex-shrink can otherwise crush them (sometimes to zero, which reads as the
+   text not loading at all). */
+.marquee-group > * {
+  flex: none;
 }
 
 /* Fixed-width digits so the ticking clocks don't nudge the strip as they change. */
 .marquee-city {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
-/* The track is two identical groups, so -50% lands exactly on a repeat. */
-@keyframes marquee-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+/* The ✦ separator is drawn, not typed: it is a glyph many fonts (including the
+   bundled one) do not carry, and a missing glyph renders as nothing or a tofu
+   box on some systems. A rotated square is the same mark everywhere and needs
+   no fallback. */
+.marquee-sep {
+  width: 0.55em;
+  height: 0.55em;
+  background: currentColor;
+  transform: rotate(45deg);
+  align-self: center;
 }
 
 /* Slide the ribbon backdrop by exactly one tile, so the woven line flows past
    without ever showing a seam. */
 @keyframes marquee-ribbon {
-  from { background-position-x: 0; }
-  to   { background-position-x: calc(-1 * var(--ribbon-w)); }
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-1 * var(--ribbon-w))); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1974,7 +2206,10 @@ h1, h2, h3, h4, h5, h6 {
     transform: rotate(-135deg);
   }
 
-  /* Two buttons fit; the rest are a swipe to the right. */
+  /* Two buttons fit; the rest are a swipe to the right. The strip scrolls
+     freely, and JS keeps it drifting slowly left-to-right on a loop (see
+     mobile.js). The duplicate set is laid out right after the real one, so the
+     loop's wrap-around is invisible. */
   #nav-scroll {
     flex-direction: row;
     align-items: center;
@@ -1983,12 +2218,15 @@ h1, h2, h3, h4, h5, h6 {
     height: calc(var(--nav-height) - var(--nav-handle));
     overflow-x: auto;
     overflow-y: hidden;
-    scroll-snap-type: x proximity;
+  }
+
+  .nav-group--clone {
+    display: flex;
+    flex: none;
   }
 
   .nav-btn {
-    flex: 0 0 50%;
-    scroll-snap-align: center;
+    flex: 0 0 50vw;
     gap: 0.3rem;
     padding: 0.25rem;
   }
@@ -2040,6 +2278,7 @@ h1, h2, h3, h4, h5, h6 {
     min-height: auto;
   }
 
+  /* Poster above the words here, so the announcement reads like a card. */
   #home-news {
     order: 1;
     width: 100%;
@@ -2159,7 +2398,17 @@ h1, h2, h3, h4, h5, h6 {
 
   .scent-name {
     font-size: 0.6rem;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.05em;
+  }
+
+  /* The narrowest phones have columns too tight for even a single word at the
+     size above, so the names step down once more — the break-word wrap in the
+     base rule stays as the last line of defence at any width. */
+  @media (max-width: 430px) {
+    .scent-name {
+      font-size: 0.46rem;
+      letter-spacing: 0.02em;
+    }
   }
 
   /* ---- A single scent: one column, and the whole of it scrolls ---- */
@@ -2208,54 +2457,74 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 1.75rem;
   }
 
-  /* ---- Atelier: the photograph is wider than the screen and slides ---- */
-  .view[data-view="atelier"] {
+  /* ---- Atelier: posts stacked, each one a row of swipable parts ---- */
+  #atelier-scroll {
+    flex-direction: column;
+    gap: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-snap-type: y proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .atelier-post {
+    flex: 0 0 auto;
+    width: 100%;
+    height: calc(100% - 2.5rem);
+    min-height: 0;
+  }
+
+  .atelier-post-parts {
+    gap: 1rem;
     overflow-x: auto;
     overflow-y: hidden;
+    scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
-    justify-content: flex-start;
   }
 
-  /* Full height, and as wide as the photograph's own proportions make it
-     (atelier.js measures each one and sets --atelier-aspect). */
-  #atelier-backdrop {
-    position: relative;
-    inset: auto;
-    flex: none;
-    width: auto;
-    height: 100%;
-    min-width: 100%;
-    aspect-ratio: var(--atelier-aspect, 1.5);
+  /* One part to a slide, leaving the next part peeking. A post with only one
+     part fills the whole width instead. */
+  .atelier-part {
+    flex: 0 0 86%;
+    scroll-snap-align: start;
   }
 
-  /* The gradient assumed the text was always on the left; here the photograph
-     moves under it, so the whole thing is dimmed evenly instead. */
-  #atelier-backdrop::after {
+  .atelier-post-parts--single .atelier-part {
+    flex-basis: 100%;
+  }
+
+  /* The photograph dims evenly behind the words, which sit in a box anchored
+     to the bottom of the slide. */
+  .atelier-part--cover::after {
     background: rgba(14, 14, 16, 0.55);
   }
 
-  /* Fixed, so sliding the photograph leaves the words where they were. */
-  #atelier-text {
-    position: fixed;
+  .atelier-part-text--cover {
+    position: absolute;
     left: 1.25rem;
     right: 1.25rem;
-    bottom: calc(var(--nav-space) + 1.5rem);
+    bottom: 1.5rem;
     width: auto;
+    max-width: none;
     margin: 0;
     padding: 1.25rem;
     background: rgba(14, 14, 16, 0.8);
-    /* Anchored to the bottom, so without a ceiling a long text grows up and
-       off the top of the screen with no way to reach it. The room it may take
-       is what is left between the strip along the top and the nav along the
-       bottom; on a short phone it scrolls inside its own box instead. (A
-       percentage, not a viewport unit: on a fixed box it resolves against the
-       viewport anyway, and needs no @supports guard the way dvh does.) */
-    max-height: calc(100% - var(--strip-height) - var(--nav-space) - 3rem);
+    max-height: calc(100% - 3rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
-  #atelier-text h2 {
+  .atelier-part--text {
+    padding: 1.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .atelier-part--poster {
+    padding: 1.25rem;
+  }
+
+  .atelier-part-text--cover h2 {
     font-size: 1.6rem;
     margin-bottom: 0.75rem;
   }

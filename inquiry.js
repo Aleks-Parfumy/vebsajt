@@ -187,11 +187,23 @@ export function createInquiryForm({ heading = '', sendLabel = 'Send inquiry' } =
   };
 }
 
-/** The popup behind a scent's Inquire button. */
-export function initInquiry() {
+/**
+ * The popup behind an Inquire button. One dialog per use — the scent page and
+ * the home page each keep their own — so `id` must be unique. The `title` is
+ * the large line under the eyebrow; `open()` can override it and the subject
+ * (e.g. with a scent name).
+ */
+export function initInquiry({
+  eyebrow = 'Inquire about',
+  title = '',
+  subject = '',
+  sendLabel = 'Send inquiry',
+  id = 'inquiry',
+} = {}) {
   const dialog = document.createElement('dialog');
-  dialog.id = 'inquiry';
-  dialog.setAttribute('aria-labelledby', 'inquiry-scent');
+  dialog.id = id;
+  dialog.className = 'inquiry-dialog';
+  dialog.setAttribute('aria-labelledby', `${id}-title`);
   dialog.innerHTML = `
     <!-- the largest piece of the model, sitting behind the form -->
     <span class="shape shape--large inquiry-shape" aria-hidden="true"></span>
@@ -199,13 +211,14 @@ export function initInquiry() {
 
   const { form, reset } = createInquiryForm({
     heading: `
-      <p class="inquiry-eyebrow">Inquire about</p>
-      <h2 class="inquiry-scent" id="inquiry-scent"></h2>`,
+      <p class="inquiry-eyebrow">${eyebrow}</p>
+      <h2 class="inquiry-scent" id="${id}-title">${title}</h2>`,
+    sendLabel,
   });
   dialog.append(form);
   document.body.append(dialog);
 
-  const scentEl = form.querySelector('.inquiry-scent');
+  const titleEl = form.querySelector('.inquiry-scent');
   dialog.querySelector('.inquiry-close').addEventListener('click', () => dialog.close());
 
   // Clicking the backdrop (i.e. outside the form) closes the dialog too.
@@ -214,9 +227,9 @@ export function initInquiry() {
   });
 
   return {
-    open(scentName) {
-      scentEl.textContent = scentName;
-      reset(scentName);
+    open(label = title, subjectOverride = subject) {
+      titleEl.textContent = label;
+      reset(subjectOverride);
       dialog.showModal();
     },
   };
